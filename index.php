@@ -1,18 +1,16 @@
 <?php
-echo"hello";
 
 require './pdos/DatabasePdo.php';
-echo"hello";
+
 
 require './pdos/IndexPdo.php';
-echo"hello";
+
 
 require './pdos/JWTPdo.php';
 require './vendor/autoload.php';
 
 use \Monolog\Logger as Logger;
 use Monolog\Handler\StreamHandler;
-echo"hello";
 
 date_default_timezone_set('Asia/Seoul');
 ini_set('default_charset', 'utf8mb4');

@@ -37,7 +37,7 @@ function isValidUserIdx($userIdx)
     return $res[0]['exist'];
 }
 //validation
-function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$event)
+function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event)
 {
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from User where userId = ?) exist;";
@@ -78,8 +78,8 @@ function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$e
         return array(false, "비밀번호를 입력해주세요.");
         exit;
     }
-    $pattern3='/^[0-9A-Za-z!@#$%^&*]{10,20}$/';
-    $pattern4='/(\d)\\1\\1\\1/';
+    $pattern3='/^[0-9A-Za-z!@#$%^&*]{10,}$/';
+    $pattern4='/(\d)\\1\\1/';
     $num = preg_match('/[0-9]/u', $password);
     $eng = preg_match('/[a-z]/u', $password);
     $spe = preg_match("/[\!\@\#\$\%\^\&\*]/u",$password);
@@ -89,7 +89,7 @@ function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$e
         return array(false, "영문자 또는 숫자 또는 특수문자 조합으로 10자 이상 입력하세요.");
         exit;
     }
-    if(!preg_match($pattern4,$password)){
+    if(preg_match($pattern4,$password)){
         $st = null;
         $pdo = null;
         return array(false, "동일한 숫자는 3개이상 쓰지마세요.");
@@ -119,6 +119,25 @@ function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$e
         return array(false, "이메일 주소가 옳지 않습니다");
         exit;
     }
+    if($phoneNumber==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "휴대폰 번호를 입력해주세요.");
+        exit;
+    }
+    if(!preg_match("/^01[0-9]{8,9}$/", $phoneNumber))
+    {
+        $st = null;
+        $pdo = null;
+        return array(false, "휴대폰 번호가 옳지 않습니다");
+        exit;
+    }
+    if($address==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "주소를 입력해주세요.");
+        exit;
+    }
     if($gender==null){
         $st = null;
         $pdo = null;
@@ -140,16 +159,21 @@ function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$e
 
 //POST
 
-function createUser($userId,$password,$name,$email,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail)
+function createUser($userId,$password,$name,$email, $phoneNumber,$address,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail)
 {
         $pdo = pdoSqlConnect();
-        $query = "INSERT INTO User (userId,password,name,email,birthday,gender,recommenderId,event,acceptPrivacy,isSMS,isEmail) VALUES (?,?,?,?,?,?,?,?,?,?,?);";
-
+        $query = "select ifnull(max(userIdx)+1,1) as userIdx from User;";
         $st = $pdo->prepare($query);
-        $st->execute([$userId,$password,$name,$email,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail]);
-
+        $st->execute();
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $userIdx = $st->fetchAll()[0]['userIdx'];
+        $pdo = pdoSqlConnect();
+        $query = "INSERT INTO User (userIdx,userId,password,name,email, phoneNumber,address,birthday,gender,recommenderId,event,acceptPrivacy,isSMS,isEmail) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$userId,$password,$name,$email, $phoneNumber,$address,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail]);
         $st = null;
         $pdo = null;
+        return $userIdx;
 }
 
 

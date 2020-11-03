@@ -1,6 +1,5 @@
 <?php
 require 'function.php';
-
 const JWT_SECRET_KEY = "TEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEYTEST_KEY";
 
 $res = (object)array();
@@ -37,13 +36,15 @@ try {
             $name = $req->name;
             $email = $req->email;
             $birthday = $req->birthday;
+            $phoneNumber=$req->phoneNumber;
+            $address=$req->address;
             $gender = $req->gender;
             $recommenderId = $req->recommenderId;
             $event = $req->event;
             $acceptPrivacy = $req->acceptPrivacy;
             $isSMS = $req->isSMS;
             $isEmail = $req->isEmail;
-            $result = isValidNewUser($userId, $password, $name, $email, $gender, $recommenderId, $event);
+            $result = isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = 400;
@@ -51,10 +52,11 @@ try {
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
-            createUser($userId, $password, $name, $email, $birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
+            $userIdx=createUser($userId, $pwd_hash, $name, $email, $phoneNumber,$address,$birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
+            $res->result->jwt = getJWT($userIdx, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
             $res->code = 100;
-            $res->message = "테스트 성공";
+            $res->message = "회원가입 및 JWT발급 성공";
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
 
