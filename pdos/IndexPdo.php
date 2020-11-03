@@ -86,19 +86,19 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
     if(!preg_match($pattern3,$password)){
         $st = null;
         $pdo = null;
-        return array(false, "영문자 또는 숫자 또는 특수문자 조합으로 10자 이상 입력하세요.");
+        return array(false, "비밀번호는 영문자 또는 숫자 또는 특수문자 조합으로 10자 이상 입력하세요.");
         exit;
     }
     if(preg_match($pattern4,$password)){
         $st = null;
         $pdo = null;
-        return array(false, "동일한 숫자는 3개이상 쓰지마세요.");
+        return array(false, "비밀번호는 동일한 숫자를 3개이상 쓰지마세요.");
         exit;
     }
     if(($num==0&&$eng==0)||($num==0&&$spe==0)||($eng==0&&$spe==0)){
         $st = null;
         $pdo = null;
-        return array(false, "영문자 또는 숫자 또는 특수문자 중 적어도 2가지 조합은 사용해야합니다.");
+        return array(false, "비밀번호엔 영문자 또는 숫자 또는 특수문자 중 적어도 2가지 조합은 사용해야합니다.");
         exit;
     }
     if($name==null){
