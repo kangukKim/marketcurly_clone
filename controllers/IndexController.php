@@ -27,41 +27,36 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
-        case "getFriend":
-            http_response_code(200);
-            $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
-            $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
-            $res->result=getFriend($userIdx);
-            if(count($res->result)==0){
-                $res=new stdClass();
-                $res->code = 320;$res->isSuccess = False;
-                $res->message = "친구가 없습니다.";
-                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
-                break;
-            }
-            $res->isSuccess = True;
-            $res->code = 100;
-            $res->message = "친구 목록 로드 성공.";
-            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
-            break;
-        case "getSchedule":
-            http_response_code(200);
-            $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
-            $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
-            $scheduleIdx=$_GET['scheduleIdx'];
-            if(!isValidSchedule($userIdx,$scheduleIdx)){
-                $res->code = 200;$res->isSuccess = False;
-                $res->message = "해당 시간표는 존재하지 않습니다.";
-                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
-                break;
-            }
-            $res->result=getSchedule($userIdx,$scheduleIdx);
-            $res->isSuccess = True;
-            $res->code = 100;
-            $res->message = "시간표 로드 성공";
-            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
-            break;
 
+        case "createUser":
+
+            http_response_code(200);
+            $userId = $req->userId;
+            $password = $req->password;
+            $pwd_hash = password_hash($req->password, PASSWORD_DEFAULT); // Password Hash
+            $name = $req->name;
+            $email = $req->email;
+            $birthday = $req->birthday;
+            $gender = $req->gender;
+            $recommenderId = $req->recommenderId;
+            $event = $req->event;
+            $acceptPrivacy = $req->acceptPrivacy;
+            $isSMS = $req->isSMS;
+            $isEmail = $req->isEmail;
+            $result = isValidNewUser($userId, $password, $name, $email, $gender, $recommenderId, $event);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = 400;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            createUser($userId, $password, $name, $email, $birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
+            $res->isSuccess = TRUE;
+            $res->code = 100;
+            $res->message = "테스트 성공";
+            echo json_encode($res, JSON_NUMERIC_CHECK);
+            break;
 
         case "getUsers":
             http_response_code(200);
@@ -91,20 +86,6 @@ try {
          * API Name : 테스트 Body & Insert API
          * 마지막 수정 날짜 : 19.04.29
          */
-        case "createUser":
-            http_response_code(200);
-
-            // Packet의 Body에서 데이터를 파싱합니다.
-            $userID = $req->userID;
-            $pwd_hash = password_hash($req->pwd, PASSWORD_DEFAULT); // Password Hash
-            $name = $req->name;
-
-            $res->result = createUser($userID, $pwd_hash, $name);
-            $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "테스트 성공";
-            echo json_encode($res, JSON_NUMERIC_CHECK);
-            break;
     }
 } catch (\Exception $e) {
     return getSQLErrorException($errorLogs, $e, $req);

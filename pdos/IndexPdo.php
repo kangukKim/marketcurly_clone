@@ -18,61 +18,6 @@ function getUsers()
     return $res;
 }
 
-function getFriend($userIdx){
-    $pdo = pdoSqlConnect();
-    $query = "select userIdx2 as friendIdx, tb_1.name from Friend
-inner join (select userIdx,name from User) as tb_1
-on Friend.userIdx2 = tb_1.userIdx
-where userIdx1=? and Friend.isDeleted='N';";
-    $st = $pdo->prepare($query);
-    $st->execute([$userIdx]);
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
-    return $res;
-}
-
-function getSchedule($userIdx,$scheduleIdx){
-    $pdo = pdoSqlConnect();
-    $query = "select S.semester as semester,S.scheduleName, Subject.subjectIdx as subjectIdx, subjectName,
-           Time.day,Time.startTime,Time.endTime,Time.place
-
-           from (select userIdx,semester,Schedule.scheduleIdx as scheduleIdx,scheduleName, subjectIdx from Schedule
-    inner join SubjectInSchedule
-               on Schedule.scheduleIdx=SubjectInSchedule.scheduleIdx
-               where SubjectInSchedule.isDeleted='N' and userIdx =:userIdx and Schedule.scheduleIdx=:scheduleIdx) as S
-    inner join Subject
-    on S.subjectIdx=Subject.subjectIdx
-    inner join SubjectTime as Time
-    on Time.subjectIdx=S.subjectIdx;";
-    $st = $pdo->prepare($query);
-    $st->bindParam(':userIdx',$userIdx,PDO::PARAM_INT);
-    $st->bindParam(':scheduleIdx',$scheduleIdx,PDO::PARAM_INT);
-    $st->execute();
-
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
-    $st = null;
-    $pdo = null;
-
-    return $res;
-}
-//READ
-function getUserDetail($userIdx)
-{
-    $pdo = pdoSqlConnect();
-    $query = "select * from Users where userIdx = ?;";
-
-    $st = $pdo->prepare($query);
-    $st->execute([$userIdx]);
-    //    $st->execute();
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
-
-    $st = null;
-    $pdo = null;
-
-    return $res[0];
-}
 
 //READ
 function isValidUserIdx($userIdx)
@@ -91,20 +36,122 @@ function isValidUserIdx($userIdx)
 
     return $res[0]['exist'];
 }
-
-
-function createUser($ID, $pwd, $name)
+//validation
+function isValidNewUser($userId,$password,$name,$email,$gender,$recommenderId,$event)
 {
     $pdo = pdoSqlConnect();
-    $query = "INSERT INTO Users (ID, pwd, name) VALUES (?,?,?);";
-
+    $query = "select EXISTS(select * from User where userId = ?) exist;";
     $st = $pdo->prepare($query);
-    $st->execute([$ID, $pwd, $name]);
-
-    $st = null;
-    $pdo = null;
+    $st->execute([$userId]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if($userId==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "아이디를 입력해주세요.");
+        exit;
+    }
+    if($res[0]['exist']==1){
+        $st = null;
+        $pdo = null;
+        return array(false, "이미 존재하는 ID 입니다.");
+        exit;
+    }
+    $pattern1 = '/^[0-9A-Za-z]{6,20}$/u';
+    $pattern2='/[a-zA-Z]/u';
+    if(!preg_match($pattern1 ,$userId)){
+        $st = null;
+        $pdo = null;
+        return array(false, "ID는 6자리 이상 영문자 또는 영문자와 숫자 조합만 가능합니다.");
+        exit;
+    }
+    if(!preg_match($pattern2 ,$userId)){
+        $st = null;
+        $pdo = null;
+        return array(false, "ID는 영문자를 반드시 포함해야합니다.");
+        exit;
+    }
+    if($password==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "비밀번호를 입력해주세요.");
+        exit;
+    }
+    $pattern3='/^[0-9A-Za-z!@#$%^&*]{10,20}$/';
+    $pattern4='/(\d)\\1\\1\\1/';
+    $num = preg_match('/[0-9]/u', $password);
+    $eng = preg_match('/[a-z]/u', $password);
+    $spe = preg_match("/[\!\@\#\$\%\^\&\*]/u",$password);
+    if(!preg_match($pattern3,$password)){
+        $st = null;
+        $pdo = null;
+        return array(false, "영문자 또는 숫자 또는 특수문자 조합으로 10자 이상 입력하세요.");
+        exit;
+    }
+    if(!preg_match($pattern4,$password)){
+        $st = null;
+        $pdo = null;
+        return array(false, "동일한 숫자는 3개이상 쓰지마세요.");
+        exit;
+    }
+    if(($num==0&&$eng==0)||($num==0&&$spe==0)||($eng==0&&$spe==0)){
+        $st = null;
+        $pdo = null;
+        return array(false, "영문자 또는 숫자 또는 특수문자 중 적어도 2가지 조합은 사용해야합니다.");
+        exit;
+    }
+    if($name==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "이름을 입력해주세요.");
+        exit;
+    }
+    if($email==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "이메일을 입력해주세요.");
+        exit;
+    }
+    if(!filter_Var($email, FILTER_VALIDATE_EMAIL)){
+        $st = null;
+        $pdo = null;
+        return array(false, "이메일 주소가 옳지 않습니다");
+        exit;
+    }
+    if($gender==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "성별을 입력해주세요.");
+        exit;
+    }
+    if($recommenderId!=null&&$event!=null){
+        $st = null;
+        $pdo = null;
+        return array(false, "추천인과 이벤트 둘 중 하나만 입력가능합니다.");
+        exit;
+    }
+    return array(True,"유효한 유저입니다.");
 
 }
+
+
+
+
+//POST
+
+function createUser($userId,$password,$name,$email,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail)
+{
+        $pdo = pdoSqlConnect();
+        $query = "INSERT INTO User (userId,password,name,email,birthday,gender,recommenderId,event,acceptPrivacy,isSMS,isEmail) VALUES (?,?,?,?,?,?,?,?,?,?,?);";
+
+        $st = $pdo->prepare($query);
+        $st->execute([$userId,$password,$name,$email,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail]);
+
+        $st = null;
+        $pdo = null;
+}
+
 
 
 // CREATE

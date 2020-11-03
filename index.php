@@ -1,19 +1,24 @@
 <?php
+echo"hello";
 
 require './pdos/DatabasePdo.php';
+echo"hello";
+
 require './pdos/IndexPdo.php';
+echo"hello";
+
 require './pdos/JWTPdo.php';
 require './vendor/autoload.php';
 
 use \Monolog\Logger as Logger;
 use Monolog\Handler\StreamHandler;
+echo"hello";
 
 date_default_timezone_set('Asia/Seoul');
 ini_set('default_charset', 'utf8mb4');
 
 //에러출력하게 하는 코드
-//error_reporting(E_ALL); ini_set("display_errors", 1);
-
+error_reporting(E_ALL); ini_set("display_errors", 1);
 //Main Server API
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
     /* ******************   JWT   ****************** */
@@ -21,12 +26,13 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/jwt', ['JWTController', 'validateJwt']);  // JWT 유효성 검사
 
     /* ******************   Test   ****************** */
-    $r->addRoute('GET', '/', ['IndexController', 'index']);
-    $r->addRoute('GET', '/users', ['IndexController', 'getUsers']);
-    $r->addRoute('GET', '/users/{userIdx}', ['IndexController', 'getUserDetail']);
+//    $r->addRoute('GET', '/', ['IndexController', 'index']);
+//    $r->addRoute('GET', '/users', ['IndexController', 'getUsers']);
+//    $r->addRoute('GET', '/users/{userIdx}', ['IndexController', 'getUserDetail']);
+
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']); // 비밀번호 해싱 예시 추가
-    $r->addRoute('GET', '/schedule', ['IndexController', 'getSchedule']);
-    $r->addRoute('GET', '/friend', ['IndexController', 'getFriend']);
+    $r->addRoute('GET', '/user', ['IndexController', 'getUser']); // 비밀번호 해싱 예시 추가
+
 
 
 
