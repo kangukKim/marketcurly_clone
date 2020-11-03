@@ -55,8 +55,8 @@ try {
             $userIdx=createUser($userId, $pwd_hash, $name, $email, $phoneNumber,$address,$birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
             $res->result->jwt = getJWT($userIdx, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "회원가입 및 JWT발급 성공";
+            $res->code = 201;
+            $res->message = "리소스 생성 성공";
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
 
