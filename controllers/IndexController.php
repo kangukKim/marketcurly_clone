@@ -26,7 +26,24 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "isValidUserId":
+            http_response_code(200);
 
+            $userId = $req->userId;
+            $res=new stdClass();
+            $result = isValidUserId($userId);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = 400;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->isSuccess = TRUE;
+            $res->code = 200;
+            $res->message = $result[1];
+            echo json_encode($res, JSON_NUMERIC_CHECK);
+            break;
         case "createUser":
 
             http_response_code(200);
@@ -53,6 +70,9 @@ try {
                 break;
             }
             $userIdx=createUser($userId, $pwd_hash, $name, $email, $phoneNumber,$address,$birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
+            $res=new stdClass();
+            $res->result=new stdClass();
+            $res->result->jwt=new stdClass();
             $res->result->jwt = getJWT($userIdx, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
             $res->code = 201;

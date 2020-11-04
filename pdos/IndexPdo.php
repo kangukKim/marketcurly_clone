@@ -20,6 +20,29 @@ function getUsers()
 
 
 //READ
+function isValidUserId($userId){
+    $pdo = pdoSqlConnect();
+    $query = "select EXISTS(select * from User where userId = ?) exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userId]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if($userId==null){
+        $st = null;
+        $pdo = null;
+        return array(false, "아이디를 입력해주세요.");
+        exit;
+    }
+    if($res[0]['exist']==1){
+        $st = null;
+        $pdo = null;
+        return array(false, "이미 존재하는 ID 입니다.");
+        exit;
+    }
+    return array(True, "사용가능한 ID 입니다.");
+}
+
 function isValidUserIdx($userIdx)
 {
     $pdo = pdoSqlConnect();
@@ -35,6 +58,7 @@ function isValidUserIdx($userIdx)
     $pdo = null;
 
     return $res[0]['exist'];
+
 }
 //validation
 function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event)
