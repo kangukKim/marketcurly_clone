@@ -64,7 +64,7 @@ try {
             $result = isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event);
             if ($result[0] == false) {
                 $res->message = $result[1];
-                $res->code = 400;
+                $res->code = $result[2];
                 $res->isSuccess = False;
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
@@ -76,7 +76,7 @@ try {
             $res->result->jwt = getJWT($userIdx, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
             $res->code = 201;
-            $res->message = "리소스 생성 성공";
+            $res->message = "회원가입에 성공했습니다";
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
 
