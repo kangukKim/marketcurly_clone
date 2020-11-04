@@ -34,13 +34,13 @@ try {
             $result = isValidUserId($userId);
             if ($result[0] == false) {
                 $res->message = $result[1];
-                $res->code = 400;
+                $res->code = $result[2];
                 $res->isSuccess = False;
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
             $res->isSuccess = TRUE;
-            $res->code = 200;
+            $res->code = $result[2];
             $res->message = $result[1];
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
