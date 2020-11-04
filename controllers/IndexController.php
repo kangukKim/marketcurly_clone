@@ -29,7 +29,7 @@ try {
         case "isValidUserId":
             http_response_code(200);
 
-            $userId = $req->userId;
+            $userId = $_GET['userId'];
             $res=new stdClass();
             $result = isValidUserId($userId);
             if ($result[0] == false) {
