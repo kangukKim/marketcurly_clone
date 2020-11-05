@@ -20,16 +20,15 @@ error_reporting(E_ALL); ini_set("display_errors", 1);
 //Main Server API
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
     /* ******************   JWT   ****************** */
-    $r->addRoute('POST', '/jwt', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
-    $r->addRoute('GET', '/jwt', ['JWTController', 'validateJwt']);  // JWT 유효성 검사
+    $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
+    $r->addRoute('GET', '/login/jwt', ['JWTController', 'validateJwt']);  // JWT 유효성 검사
 
-    /* ******************   Test   ****************** */
-//    $r->addRoute('GET', '/', ['IndexController', 'index']);
-//    $r->addRoute('GET', '/users', ['IndexController', 'getUsers']);
-//    $r->addRoute('GET', '/users/{userIdx}', ['IndexController', 'getUserDetail']);
-    $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']); // 비밀번호 해싱 예시 추가
-    $r->addRoute('POST', '/user', ['IndexController', 'createUser']); // 비밀번호 해싱 예시 추가
 
+    $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
+
+
+
+    $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
 
 
 

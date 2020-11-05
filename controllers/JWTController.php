@@ -18,23 +18,24 @@ try {
             http_response_code(200);
 
             // 1) 로그인 시 email, password 받기
-            if (!isValidUser($req->userID, $req->pwd)) { // JWTPdo.php 에 구현
+            $result=isValidUser($req->userId, $req->password);
+            if (!$result[0]) { // JWTPdo.php 에 구현
                 $res->isSuccess = FALSE;
-                $res->code = 201;
-                $res->message = "유효하지 않은 아이디 입니다";
+                $res->code = $result[2];
+                $res->message = $result[1];
                 echo json_encode($res, JSON_NUMERIC_CHECK);
                 return;
             }
 
             // 2) JWT 발급
             // Payload에 맞게 다시 설정 요함, 아래는 Payload에 userIdx를 넣기 위한 과정
-            $userIdx=getUserIdxById($req->id);   // JWTPdo.php 에 구현
+            $userIdx=getUserIdxById($req->userId);   // JWTPdo.php 에 구현
             $jwt = getJWT($userIdx, JWT_SECRET_KEY); // function.php 에 구현
-
+            $res->result=new stdClass();
             $res->result->jwt = $jwt;
             $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "테스트 성공";
+            $res->code = 200;
+            $res->message = "로그인 됐습니다.";
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
 
@@ -50,8 +51,8 @@ try {
             // 1) JWT 유효성 검사
             if (!isValidJWT($jwt, JWT_SECRET_KEY)) { // function.php 에 구현
                 $res->isSuccess = FALSE;
-                $res->code = 202;
-                $res->message = "유효하지 않은 토큰입니다"; 
+                $res->code = 417;
+                $res->message = "재로그인해주세요";
                 echo json_encode($res, JSON_NUMERIC_CHECK);
                 addErrorLogs($errorLogs, $res, $req);
                 return;
@@ -59,10 +60,9 @@ try {
 
             // 2) JWT Payload 반환
             http_response_code(200);
-            $res->result = getDataByJWToken($jwt, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "테스트 성공";
+            $res->code = 200;
+            $res->message = "로그인 됐습니다";
 
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
