@@ -60,7 +60,7 @@ function isValidUserId($userId){
 function isValidUserIdx($userIdx)
 {
     $pdo = pdoSqlConnect();
-    $query = "select EXISTS(select * from Users where userIdx = ?) exist;";
+    $query = "select EXISTS(select * from User where userIdx = ? and isDeleted='N') exist;";
 
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
@@ -72,7 +72,109 @@ function isValidUserIdx($userIdx)
     $pdo = null;
 
     return $res[0]['exist'];
-
+}
+function getHomePage($userIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res=new stdClass();
+    $res->basketCount = $st->fetchAll();
+    $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+                else 0
+                    END
+        ,'%') as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where Product.isDeleted='N' and quantity !=0
+order by quantity desc LIMIT 0,5;";
+    $st = $pdo->prepare($query);
+    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->recommend = $st->fetchAll();
+    $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+                else 0
+                    END
+        ,'%') as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where Product.isDeleted='N' and quantity !=0
+order by salePercent desc
+LIMIT 0,5;";
+    $st = $pdo->prepare($query);
+    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->sale = $st->fetchAll();
+    return $res;
 }
 //validation
 function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address, $recommenderId, $event)

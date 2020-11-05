@@ -25,6 +25,7 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
 
 
     $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
+    $r->addRoute('GET', '/home', ['IndexController', 'getHomePage']);
 
 
 
