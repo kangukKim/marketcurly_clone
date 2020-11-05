@@ -75,7 +75,7 @@ function isValidUserIdx($userIdx)
 
 }
 //validation
-function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event)
+function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address, $recommenderId, $event)
 {
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from User where userId = ?) exist;";
@@ -176,16 +176,11 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
         return array(false, "주소를 입력해주세요.",414);
         exit;
     }
-    if($gender==null){
-        $st = null;
-        $pdo = null;
-        return array(false, "성별을 입력해주세요.",415);
-        exit;
-    }
+
     if($recommenderId!=null&&$event!=null){
         $st = null;
         $pdo = null;
-        return array(false, "추천인과 이벤트 둘 중 하나만 입력가능합니다.",416);
+        return array(false, "추천인과 이벤트 둘 중 하나만 입력가능합니다.",415);
         exit;
     }
     return array(True,"유효한 유저입니다.");

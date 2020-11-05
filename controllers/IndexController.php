@@ -61,7 +61,7 @@ try {
             $acceptPrivacy = $req->acceptPrivacy;
             $isSMS = $req->isSMS;
             $isEmail = $req->isEmail;
-            $result = isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address,$gender, $recommenderId, $event);
+            $result = isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address, $recommenderId, $event);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = $result[2];
