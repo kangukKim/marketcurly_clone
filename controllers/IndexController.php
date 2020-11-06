@@ -26,6 +26,35 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "addBasket":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $productIdx=$req->productIdx;
+            $optionIdx=$req->optionIdx;
+            $count=$req->count;
+            $result = addBasket($userIdx,$productIdx,$optionIdx,$count);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = $result[2];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->message = $result[1];
+            $res->code = $result[2];
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
         case "getRecommendPage":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -120,9 +149,9 @@ try {
                 break;
             }
             $userIdx=createUser($userId, $pwd_hash, $name, $email, $phoneNumber,$address,$birthday, $gender, $recommenderId, $event, $acceptPrivacy, $isSMS, $isEmail);
-            $res=new stdClass();
+//            $res=new stdClass();
             $res->result=new stdClass();
-            $res->result->jwt=new stdClass();
+//            $res->result->jwt=new stdClass();
             $res->result->jwt = getJWT($userIdx, JWT_SECRET_KEY);
             $res->isSuccess = TRUE;
             $res->code = 201;
@@ -130,34 +159,6 @@ try {
             echo json_encode($res, JSON_NUMERIC_CHECK);
             break;
 
-        case "getUsers":
-            http_response_code(200);
-
-            $res->result = getUsers();
-            $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "테스트 성공";
-            echo json_encode($res, JSON_NUMERIC_CHECK);
-            break;
-        /*
-         * API No. 5
-         * API Name : 테스트 Path Variable API
-         * 마지막 수정 날짜 : 19.04.29
-         */
-        case "getUserDetail":
-            http_response_code(200);
-
-            $res->result = getUserDetail($vars["userIdx"]);
-            $res->isSuccess = TRUE;
-            $res->code = 100;
-            $res->message = "테스트 성공";
-            echo json_encode($res, JSON_NUMERIC_CHECK);
-            break;
-        /*
-         * API No. 6
-         * API Name : 테스트 Body & Insert API
-         * 마지막 수정 날짜 : 19.04.29
-         */
     }
 } catch (\Exception $e) {
     return getSQLErrorException($errorLogs, $e, $req);

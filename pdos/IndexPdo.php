@@ -1,7 +1,7 @@
 <?php
 
 
-//READ
+//validation
 function isValidUserId($userId){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from User where userId = ?) exist;";
@@ -55,6 +55,9 @@ function isValidUserIdx($userIdx)
 
     return $res[0]['exist'];
 }
+
+
+//GET
 function getRecommendPage($userIdx){
     $pdo = pdoSqlConnect();
     $res=new stdClass();
@@ -76,7 +79,6 @@ function getRecommendPage($userIdx){
     else{
         $res->basketCount=0;
     }
-    $category="";
     if($userIdx!=null) {
         $query = "select category from Product
 inner join Basket
@@ -92,19 +94,10 @@ LIMIT 1 ;";
     else{
         $category='정육·계란';
     }
-//    $query = "select category from Product
-//inner join Basket
-//on Product.productIdx = Basket.productIdx
-//where Product.isDeleted='N' and userIdx=?
-//order by Basket.createdAt
-//LIMIT 1 ;";
-//    $st = $pdo->prepare($query);
-//    $st->execute([$userIdx]);
-//    $st->setFetchMode(PDO::FETCH_ASSOC);
-//    $category=$st->fetchAll();
+
     $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
@@ -126,7 +119,7 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
                 else 0
                     END
-        ,'%') as salePercent from ProductOption group by productIdx) as PO
+     as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
 inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
 on pic.productIdx=PO.productIdx
@@ -150,7 +143,7 @@ LIMIT 0,5;";
     $res->related = $st->fetchAll();
     $query="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
@@ -172,7 +165,7 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
                 else 0
                     END
-        ,'%') as salePercent from ProductOption group by productIdx) as PO
+         as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
 inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
 on pic.productIdx=PO.productIdx
@@ -230,7 +223,7 @@ function getHomePage($userIdx){
     }
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
@@ -252,7 +245,7 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
                 else 0
                     END
-        ,'%') as salePercent from ProductOption group by productIdx) as PO
+         as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
 inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
 on pic.productIdx=PO.productIdx
@@ -276,7 +269,7 @@ order by quantity desc LIMIT 0,5;";
     $res->recommend = $st->fetchAll();
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
         when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
@@ -298,7 +291,7 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
                 else 0
                     END
-        ,'%') as salePercent from ProductOption group by productIdx) as PO
+         as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
 inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
 on pic.productIdx=PO.productIdx
@@ -440,6 +433,50 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 
 
 //POST
+//function addBasket($userIdx,$productIdx,$optionIdx,$count){
+//    $pdo = pdoSqlConnect();
+//    $query = "select EXISTS(select * from Product where productIdx = ? and isDeleted='N') exist;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$productIdx]);
+//    $st->setFetchMode(PDO::FETCH_ASSOC);
+//    $bool = $st->fetchAll()[0]['exist'];
+//    if(!$bool){
+//        return array(false, "존재하지 않는 제품입니다.",420);
+//    }
+//    $query = "select EXISTS(select * from ProductOption where optionIdx = ? and isDeleted='N') exist;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$optionIdx]);
+//    $st->setFetchMode(PDO::FETCH_ASSOC);
+//    $bool = $st->fetchAll()[0]['exist'];
+//    if(!$bool){
+//        return array(false, "존재하지 않는 제품입니다.",420);
+//    }
+//    $query = "select quantity from Stock where optionIdx=?;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$optionIdx]);
+//    $st->setFetchMode(PDO::FETCH_ASSOC);
+//    $bool = $st->fetchAll()[0]['quantity'];
+//    if(!$bool){
+//        return array(false, "품절된 제품입니다.",421);
+//    }
+//    $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx=? and isDeleted='N') exist;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$userIdx,$optionIdx]);
+//    $st->setFetchMode(PDO::FETCH_ASSOC);
+//    $bool = $st->fetchAll()[0]['exist'];
+//    if(!$bool){
+//        $query = "insert into Basket (userIdx, productIdx, optionIdx,count) values(?,?,?,?);";
+//        $st = $pdo->prepare($query);
+//        $st->execute([$userIdx,$optionIdx]);
+//        return array(True,"장바구니에 상품을 담았습니다.",201);
+//    }
+//    $query = "update Basket set count = count+? where userIdx=? and optionIdx=?;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$count,$userIdx,$optionIdx]);
+//    return array(True,"장바구니에 상품을 담았습니다. 이미 담으신 상품이 있어 추가되었습니다.",202);
+//
+//}
+
 
 function createUser($userId,$password,$name,$email, $phoneNumber,$address,$birthday,$gender,$recommenderId,$event,$acceptPrivacy,$isSMS,$isEmail)
 {
