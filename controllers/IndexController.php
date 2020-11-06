@@ -26,6 +26,12 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "getProductInfo":
+            http_response_code(200);
+            $productIdx=$vars['productIdx'];
+            $result=getProductInfo($productIdx);
+            echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
         case "addBasket":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){

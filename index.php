@@ -23,6 +23,7 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
     $r->addRoute('GET', '/page/home', ['IndexController', 'getHomePage']);
     $r->addRoute('GET', '/page/recommend', ['IndexController', 'getRecommendPage']);
+    $r->addRoute('GET', '/product/{productIdx}', ['IndexController', 'getProductInfo']);
 
 
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
