@@ -63,18 +63,18 @@ function getRecommendPage($userIdx){
         $st = $pdo->prepare($query);
         $st->execute([$userIdx]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
-        $res->userName = $st->fetchAll();}
+        $res->userName = $st->fetchAll()[0]['name'];}
     else{
-        $res->userName[0]['userName']='고객';
+        $res->userName='고객';
     }
     if($userIdx!=null){
         $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
         $st = $pdo->prepare($query);
         $st->execute([$userIdx]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
-        $res->basketCount = $st->fetchAll();}
+        $res->basketCount = $st->fetchAll()[0]['basketCount'];}
     else{
-        $res->basketCount[0]['basketCount']=0;
+        $res->basketCount=0;
     }
     $category="";
     if($userIdx!=null) {
@@ -224,9 +224,9 @@ function getHomePage($userIdx){
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res->basketCount = $st->fetchAll();}
+    $res->basketCount = $st->fetchAll()[0]['basketCount'];}
     else{
-        $res->basketCount[0]['basketCount']=0;
+        $res->basketCount=0;
     }
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
