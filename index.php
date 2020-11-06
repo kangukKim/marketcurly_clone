@@ -1,11 +1,7 @@
 <?php
 
 require './pdos/DatabasePdo.php';
-
-
 require './pdos/IndexPdo.php';
-
-
 require './pdos/JWTPdo.php';
 require './vendor/autoload.php';
 
@@ -25,8 +21,8 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
 
 
     $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
-    $r->addRoute('GET', '/home', ['IndexController', 'getHomePage']);
-
+    $r->addRoute('GET', '/page/home', ['IndexController', 'getHomePage']);
+    $r->addRoute('GET', '/page/recommend', ['IndexController', 'getRecommendPage']);
 
 
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);

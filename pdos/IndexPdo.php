@@ -1,23 +1,5 @@
 <?php
 
-//READ
-function getUsers()
-{
-    $pdo = pdoSqlConnect();
-    $query = "select * from Users;";
-
-    $st = $pdo->prepare($query);
-    //    $st->execute([$param,$param]);
-    $st->execute([]);
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = $st->fetchAll();
-
-    $st = null;
-    $pdo = null;
-
-    return $res;
-}
-
 
 //READ
 function isValidUserId($userId){
@@ -73,14 +55,179 @@ function isValidUserIdx($userIdx)
 
     return $res[0]['exist'];
 }
+function getRecommendPage($userIdx){
+    $pdo = pdoSqlConnect();
+    $res=new stdClass();
+    if($userIdx!=null){
+        $query = "select name from User where userIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->userName = $st->fetchAll();}
+    else{
+        $res->userName[0]['basketCount']='고객';
+    }
+    if($userIdx!=null){
+        $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->basketCount = $st->fetchAll();}
+    else{
+        $res->basketCount[0]['basketCount']=0;
+    }
+    $category="";
+    if($userIdx!=null) {
+        $query = "select category from Product
+inner join Basket
+on Product.productIdx = Basket.productIdx
+where Product.isDeleted='N' and userIdx=?
+order by Basket.createdAt
+LIMIT 1 ;";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $category = $st->fetchAll()[0]['category'];
+    }
+    else{
+        $category='정육·계란';
+    }
+//    $query = "select category from Product
+//inner join Basket
+//on Product.productIdx = Basket.productIdx
+//where Product.isDeleted='N' and userIdx=?
+//order by Basket.createdAt
+//LIMIT 1 ;";
+//    $st = $pdo->prepare($query);
+//    $st->execute([$userIdx]);
+//    $st->setFetchMode(PDO::FETCH_ASSOC);
+//    $category=$st->fetchAll();
+    $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+                else 0
+                    END
+        ,'%') as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where Product.isDeleted='N' and quantity !=0 and Product.category=?
+LIMIT 0,5;";
+    $st = $pdo->prepare($query);
+    $st->execute([$category]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->related = $st->fetchAll();
+    $query="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+                else 0
+                    END
+        ,'%') as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+left outer join (select productIdx,count(*) as reviewCount from Review group by productIdx) as R
+on R.productIdx=Product.productIdx
+where Product.isDeleted='N' and quantity !=0 and Product.category='샐러드·간편식'
+order by reviewCount desc
+LIMIT 0,5;";
+
+    $st = $pdo->prepare($query);
+    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+
+    $goodComment=$st->fetchAll();
+    for($i=0;$i<count($goodComment);$i++){
+        $productIdx[$i]=$goodComment[$i]['productIdx'];
+    }
+
+    $res->goodComment = $goodComment;
+    $query="select Review.productIdx,replace(name, substr(name, 2,1 ), '*') as name, title as review from Review
+inner join User
+on Review.userIdx = User.userIdx
+where Review.isBest='Y' and User.isDeleted='N' and Review.isDeleted='N' and FIND_IN_SET(Review.productIdx,:array)";
+    $st = $pdo->prepare($query);
+    $ids_string=implode(',',$productIdx);
+    $st->bindParam(':array',$ids_string);
+    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->bestComment = $st->fetchAll();
+    return $res;
+}
 function getHomePage($userIdx){
     $pdo = pdoSqlConnect();
+    $res=new stdClass();
+    if($userIdx!=null){
     $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res=new stdClass();
-    $res->basketCount = $st->fetchAll();
+    $res->basketCount = $st->fetchAll();}
+    else{
+        $res->basketCount[0]['basketCount']=0;
+    }
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
 (select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,concat(case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
@@ -312,49 +459,3 @@ function createUser($userId,$password,$name,$email, $phoneNumber,$address,$birth
 }
 
 
-
-// CREATE
-//    function addMaintenance($message){
-//        $pdo = pdoSqlConnect();
-//        $query = "INSERT INTO MAINTENANCE (MESSAGE) VALUES (?);";
-//
-//        $st = $pdo->prepare($query);
-//        $st->execute([$message]);
-//
-//        $st = null;
-//        $pdo = null;
-//
-//    }
-
-
-// UPDATE
-//    function updateMaintenanceStatus($message, $status, $no){
-//        $pdo = pdoSqlConnect();
-//        $query = "UPDATE MAINTENANCE
-//                        SET MESSAGE = ?,
-//                            STATUS  = ?
-//                        WHERE NO = ?";
-//
-//        $st = $pdo->prepare($query);
-//        $st->execute([$message, $status, $no]);
-//        $st = null;
-//        $pdo = null;
-//    }
-
-// RETURN BOOLEAN
-//    function isRedundantEmail($email){
-//        $pdo = pdoSqlConnect();
-//        $query = "SELECT EXISTS(SELECT * FROM USER_TB WHERE EMAIL= ?) AS exist;";
-//
-//
-//        $st = $pdo->prepare($query);
-//        //    $st->execute([$param,$param]);
-//        $st->execute([$email]);
-//        $st->setFetchMode(PDO::FETCH_ASSOC);
-//        $res = $st->fetchAll();
-//
-//        $st=null;$pdo = null;
-//
-//        return intval($res[0]["exist"]);
-//
-//    }

@@ -26,17 +26,48 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "getRecommendPage":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $userIdx=null;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            if($userIdx!=null){
+                if (!isValidUserIdx($userIdx)) {
+                    $res->message = "없는 유저입니다.";
+                    $res->code = 418;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+            }
+            $res->result = getRecommendPage($userIdx);
+            $res->message = "추천화면 입니다.";
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
         case "getHomePage":
             http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $userIdx=null;
+            }
+            else{
             $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
             $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
-
+            }
+            if($userIdx!=null){
             if (!isValidUserIdx($userIdx)) {
                 $res->message = "없는 유저입니다.";
                 $res->code = 418;
                 $res->isSuccess = False;
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
+            }
             }
             $res->result = getHomePage($userIdx);
             $res->message = "홈화면 입니다.";
