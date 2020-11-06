@@ -65,7 +65,7 @@ function getRecommendPage($userIdx){
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $res->userName = $st->fetchAll();}
     else{
-        $res->userName[0]['basketCount']='고객';
+        $res->userName[0]['userName']='고객';
     }
     if($userIdx!=null){
         $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
