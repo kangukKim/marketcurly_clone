@@ -133,7 +133,7 @@ where Review.productIdx=? and Review.isDeleted='N';
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->review = $st->fetchAll();
-    $query = "select title as inquiryTitle, replace(name, substr(name, 2,1 ), '*') as userName, isLocked, date_format(Inquiry.createdAt,'%Y.%m.%d') as createdAt, if(A.contents!=null,'답변완료','답변준비중') as isAnswered from Inquiry
+    $query = "select title as inquiryTitle, replace(name, substr(name, 2,1 ), '*') as userName, isLocked, date_format(Inquiry.createdAt,'%Y.%m.%d') as createdAt, if(isnull(A.contents),'답변준비중','답변완료') as isAnswered from Inquiry
 inner join User on Inquiry.userIdx = User.userIdx
 left outer join Answer A on Inquiry.inquiryIdx = A.inquiryIdx where Inquiry.productIdx=?;";
     $st = $pdo->prepare($query);
