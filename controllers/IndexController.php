@@ -26,6 +26,27 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "getUserInfo":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $res->result = getUserInfo($userIdx);
+            $res->message = "회원정보 입니다";
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
+
         case "getProductInfo":
             http_response_code(200);
             $productIdx=$vars['productIdx'];
@@ -43,8 +64,7 @@ try {
             $res->isSuccess = True;
             echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
-            echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
-            break;
+
         case "addBasket":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){

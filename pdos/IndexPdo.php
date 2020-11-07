@@ -58,6 +58,26 @@ function isValidUserIdx($userIdx)
 
 
 //GET
+function getUserInfo($userIdx){
+    $pdo = pdoSqlConnect();
+    $query ="select distinct concat(name,'님') as userName, level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(point.point,' 원') as point from User
+    left outer join (select userIdx, count(*) as couponCount from UserCoupon where userIdx=? and isUsed='N' and isDeleted='N')
+    as coupon
+    on coupon.userIdx=User.userIdx
+    left outer join(select userIdx, count(*) as basketCount from Basket where userIdx=? and isDeleted='N')
+    as basket
+    on User.userIdx=basket.userIdx
+    inner join (select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N')
+                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point) as point on 1=1
+where User.userIdx=?";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $result=$st->fetchAll()[0];
+    return $result;
+}
+
+
 function getProductInfo($productIdx){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from Product where productIdx = ? and isDeleted='N') exist;";
@@ -77,26 +97,26 @@ function getProductInfo($productIdx){
     $res->productInfo=new stdClass();
     $query = "select Product.productIdx, pictureUrl as mainPic,productName, productComment, PO.originalPrice, concat(PO.clientPrice,'원') as clientPrice, PO.salePercent,ifnull(salesUnit,'없음') as salesUnit, ifnull(weight,'없음') as weight, ifnull(shipping,'없음') as shipping, ifnull(origin,'없음') as origin,  ifnull(packingType,'없음') as packingType, ifnull(allergy,'없음') as allergy, ifnull(expiration,'없음') as expiration, ifnull(recordInfo,'없음') as recordInfo, ifnull(guidance,'없음') as guidance, ifnull(calories,'없음') as calories from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
-    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
-            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
          as salePercent from ProductOption group by productIdx) as PO
@@ -183,26 +203,26 @@ LIMIT 1 ;";
 
     $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
-    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
-            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
      as salePercent from ProductOption group by productIdx) as PO
@@ -229,26 +249,26 @@ LIMIT 0,5;";
     $res->related = $st->fetchAll();
     $query="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
-    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
-            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
          as salePercent from ProductOption group by productIdx) as PO
@@ -269,7 +289,7 @@ from(
 on S1.productIdx = PO.productIdx
 left outer join (select productIdx,count(*) as reviewCount from Review group by productIdx) as R
 on R.productIdx=Product.productIdx
-where Product.isDeleted='N' and quantity !=0 and Product.category='샐러드·간편식'
+where Product.isDeleted='N' and quantity !=0 and Product.category='수산·해산·건어물'
 order by reviewCount desc
 LIMIT 0,5;";
 
@@ -282,7 +302,6 @@ LIMIT 0,5;";
         $productIdx[$i]=$goodComment[$i]['productIdx'];
     }
 
-    $res->goodComment = $goodComment;
     $query="select Review.productIdx,replace(name, substr(name, 2,1 ), '*') as name, title as review from Review
 inner join User
 on Review.userIdx = User.userIdx
@@ -292,7 +311,22 @@ where Review.isBest='Y' and User.isDeleted='N' and Review.isDeleted='N' and FIND
     $st->bindParam(':array',$ids_string);
     $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res->bestComment = $st->fetchAll();
+    $bestComment=$st->fetchAll();
+
+    for($j=0;$j<count($goodComment);$j++){
+        $goodComment[$j]['bestComment']=array();
+    }
+    for($i=0;$i<count($bestComment);$i++){
+        $productIdx=$bestComment[$i]['productIdx'];
+        for($j=0;$j<count($goodComment);$j++){
+            if($goodComment[$j]['productIdx']==$productIdx){
+            array_push($goodComment[$j]['bestComment'],$bestComment[$i]);
+            }
+        }
+    }
+    $res->goodComment = $goodComment;
+
+//    $res->bestComment = $st->fetchAll();
     return $res;
 }
 function getHomePage($userIdx){
@@ -309,26 +343,26 @@ function getHomePage($userIdx){
     }
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
-    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
-            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
          as salePercent from ProductOption group by productIdx) as PO
@@ -355,26 +389,26 @@ order by quantity desc LIMIT 0,5;";
     $res->recommend = $st->fetchAll();
     $query = "select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
-(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
-    when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=15 then 15
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=20 then 20
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=25 then 25
-        when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=30 then 30
-            when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=35 then 35
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=40 then 40
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=45 then 45
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=50 then 50
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=55 then 55
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=60 then 60
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=65 then 65
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=70 then 70
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=75 then 75
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=80 then 80
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=85 then 85
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=90 then 90
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=95 then 95
-                when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=100 then 100
+(select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
          as salePercent from ProductOption group by productIdx) as PO
