@@ -66,7 +66,7 @@ function getProductInfo($productIdx){
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $bool = $st->fetchAll()[0]['exist'];
     if(!$bool){
-        return array(false, "존재하지 않는 제품입니다.",420);
+        return array(false, "존재하지않는제품입니다.",420);
     }
     $query = "select count(*) as reviewCount from Review where productIdx=?";
     $st = $pdo->prepare($query);
@@ -75,7 +75,7 @@ function getProductInfo($productIdx){
     $res=new stdClass();
     $res->reviewCount = $st->fetchAll()[0]['reviewCount'];
     $res->productInfo=new stdClass();
-    $query = "select Product.productIdx, pictureUrl as mainPic,productName, productComment, ifnull(salesUnit,'없음') as salesUnit, ifnull(weight,'없음') as weight, ifnull(shipping,'없음') as shipping, ifnull(origin,'없음') as origin,  ifnull(packingType,'없음') as packingType, ifnull(allergy,'없음') as allergy, ifnull(expiration,'없음') as expiration, ifnull(recordInfo,'없음') as recordInfo, ifnull('없음',guidance) as guidance, ifnull(calories,'없음') as calories from Product
+    $query = "select Product.productIdx, pictureUrl as mainPic,productName, productComment, PO.originalPrice, concat(PO.clientPrice,'원') as clientPrice, PO.salePercent,ifnull(salesUnit,'없음') as salesUnit, ifnull(weight,'없음') as weight, ifnull(shipping,'없음') as shipping, ifnull(origin,'없음') as origin,  ifnull(packingType,'없음') as packingType, ifnull(allergy,'없음') as allergy, ifnull(expiration,'없음') as expiration, ifnull(recordInfo,'없음') as recordInfo, ifnull(guidance,'없음') as guidance, ifnull(calories,'없음') as calories from Product
 inner join
 (select productIdx,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/clientPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/clientPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/clientPrice*100,0)<=10 then 10
@@ -141,7 +141,7 @@ left outer join Answer A on Inquiry.inquiryIdx = A.inquiryIdx where Inquiry.prod
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->inquiry = $st->fetchAll();
 
-    return $res;
+    return array(True,"제품정보입니다",$res);
 }
 
 function getRecommendPage($userIdx){

@@ -30,6 +30,19 @@ try {
             http_response_code(200);
             $productIdx=$vars['productIdx'];
             $result=getProductInfo($productIdx);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = $result[2];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->result=$result[2];
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
             echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
         case "addBasket":
