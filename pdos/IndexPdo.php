@@ -436,6 +436,7 @@ LIMIT 0,5;";
     $res->sale = $st->fetchAll();
     return $res;
 }
+echo 1;
 //validation
 function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address, $recommenderId, $event)
 {
