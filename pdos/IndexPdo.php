@@ -58,6 +58,37 @@ function isValidUserIdx($userIdx)
 
 
 //GET
+function getSelectPage($userIdx,$productIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select EXISTS(select * from Product where productIdx = ? and isDeleted='N') exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$productIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $bool = $st->fetchAll()[0]['exist'];
+    if(!$bool){
+        return array(false, "존재하지않는제품입니다.",420);
+    }
+    $res = new stdClass();
+    if($userIdx!=null) {
+        $query = "select profit from Profit
+inner join (select level from User where userIdx=?) as P
+on Profit.level=P.level";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->profit = $st->fetchAll()[0]['profit'];
+    }
+    $query = "select productIdx, ProductOption.optionIdx, optionName,originalPrice,clientPrice,if(quantity!=0,'N','Y') as isSoldOut from ProductOption
+left outer join Stock
+on ProductOption.optionIdx = Stock.optionIdx
+where productIdx=? and Stock.isDeleted='N'";
+    $st = $pdo->prepare($query);
+    $st->execute([$productIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->option = $st->fetchAll();
+    return array(True, "상품선택페이지입니다.",$res);
+}
+
 function getUserInfo($userIdx){
     $pdo = pdoSqlConnect();
     $query ="select distinct concat(name,'님') as userName, level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(point.point,' 원') as point from User
