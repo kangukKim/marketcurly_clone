@@ -58,6 +58,57 @@ function isValidUserIdx($userIdx)
 
 
 //GET
+function getBasket($userIdx)
+{
+    $pdo = pdoSqlConnect();
+    $query = "select ifnull(address,'주소를 입력해주세요.') as address from User where userIdx=?";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = new stdClass();
+    $res->address = $st->fetchAll()[0]['address'];
+    $query = "select Basket.productIdx, Basket.optionIdx, productName, optionName, pictureUrl as productImg,needCount  as optionCount, originalPrice, clientPrice, left(P1.packingType,2) as type from Basket
+inner join (select productIdx, productName, packingType from Product) as P1
+on Basket.productIdx=P1.productIdx
+left outer join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as P2
+on Basket.productIdx= P2.productIdx
+left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption) as P3
+on Basket.optionIdx= P3.optionIdx
+where Basket.isDeleted='N' and userIdx=?";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $result = $st->fetchAll();
+    $res->frozenProduct=array();
+    $res->coldProduct=array();
+    $res->normalProduct=array();
+    for($i=0;$i<count($result);$i++){
+        if($result[$i]['type']=='냉동'){
+            array_push($res->frozenProduct,$result[$i]);
+        }
+        else if($result[$i]['type']=='냉장'){
+            array_push($res->coldProduct,$result[$i]);
+        }
+        else{
+            array_push($res->normalProduct,$result[$i]);
+        }
+    }
+    $query="select ifnull(sum(originalPrice)*needCount,0) as totalPrice, ifnull((sum(originalPrice)-sum(clientPrice))*needCount,0) as salePrice, ifnull(if(sum(clientPrice)*needCount<40000,sum(clientPrice)*needCount+3000,sum(clientPrice)*needCount),0) as priceToPay, ifnull(cast(sum(clientPrice)*profit/100 as signed integer)*needCount,0) as profitPrice, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
+left outer join (select optionIdx, originalPrice, clientPrice from ProductOption) as P3
+on Basket.optionIdx= P3.optionIdx
+left outer join (select userIdx,level from User) as U
+on Basket.userIdx = U.userIdx
+left outer join (select level,profit from Profit) as P
+on U.level=P.level
+where Basket.userIdx=? and Basket.isDeleted='N'";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->price = $st->fetchAll();
+    return $res;
+}
+
+
 function getSelectPage($userIdx,$productIdx){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from Product where productIdx = ? and isDeleted='N') exist;";
@@ -228,8 +279,8 @@ function getRecommendPage($userIdx){
         $res->basketCount=0;
     }
     if($userIdx!=null) {
-        $query = "select category from Product
-inner join Basket
+        $query = "select if(count(*)=0,'정육·계란',category) as category from Product
+left outer join Basket
 on Product.productIdx = Basket.productIdx
 where Product.isDeleted='N' and userIdx=?
 order by Basket.createdAt

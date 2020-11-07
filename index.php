@@ -26,6 +26,7 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/product/{productIdx}', ['IndexController', 'getProductInfo']);
     $r->addRoute('GET', '/user', ['IndexController', 'getUserInfo']);
     $r->addRoute('GET', '/product/{productIdx}/order', ['IndexController', 'getSelectPage']);
+    $r->addRoute('GET', '/basket', ['IndexController', 'getBasket']);
 
 
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
