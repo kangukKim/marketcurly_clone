@@ -78,7 +78,8 @@ where User.userIdx=?";
 }
 
 
-function getProductInfo($productIdx){
+function getProductInfo($userIdx,$productIdx){
+
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from Product where productIdx = ? and isDeleted='N') exist;";
     $st = $pdo->prepare($query);
@@ -94,6 +95,16 @@ function getProductInfo($productIdx){
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res=new stdClass();
     $res->reviewCount = $st->fetchAll()[0]['reviewCount'];
+    if($userIdx!=null){
+        $query="select User.level, profit, concat(cast(((profit*(select min(clientPrice)/100 from ProductOption where productIdx=?)))as signed integer),'원 적립') as profitPrice from User
+inner join Profit
+on User.level=Profit.level
+where userIdx=?";
+        $st = $pdo->prepare($query);
+        $st->execute([$productIdx,$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->userInfo=$st->fetchAll()[0];
+    }
     $res->productInfo=new stdClass();
     $query = "select Product.productIdx, pictureUrl as mainPic,productName, productComment, PO.originalPrice, concat(PO.clientPrice,'원') as clientPrice, PO.salePercent,ifnull(salesUnit,'없음') as salesUnit, ifnull(weight,'없음') as weight, ifnull(shipping,'없음') as shipping, ifnull(origin,'없음') as origin,  ifnull(packingType,'없음') as packingType, ifnull(allergy,'없음') as allergy, ifnull(expiration,'없음') as expiration, ifnull(recordInfo,'없음') as recordInfo, ifnull(guidance,'없음') as guidance, ifnull(calories,'없음') as calories from Product
 inner join
@@ -289,7 +300,7 @@ from(
 on S1.productIdx = PO.productIdx
 left outer join (select productIdx,count(*) as reviewCount from Review group by productIdx) as R
 on R.productIdx=Product.productIdx
-where Product.isDeleted='N' and quantity !=0 and Product.category='수산·해산·건어물'
+where Product.isDeleted='N' and quantity !=0 and Product.category='샐러드·간편식'
 order by reviewCount desc
 LIMIT 0,5;";
 

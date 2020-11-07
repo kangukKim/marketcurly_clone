@@ -49,8 +49,15 @@ try {
 
         case "getProductInfo":
             http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $userIdx=null;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
             $productIdx=$vars['productIdx'];
-            $result=getProductInfo($productIdx);
+            $result=getProductInfo($userIdx,$productIdx);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = $result[2];
