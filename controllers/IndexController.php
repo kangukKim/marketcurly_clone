@@ -26,6 +26,60 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "changeBasket":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $option=$req->option;
+            $result=changeBasket($userIdx,$option);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = $result[2];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->message = $result[1];
+            $res->code = $result[2];
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+        case "deleteBasket":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $option=$req->option;
+            $result=deleteBasket($userIdx,$option);
+            if ($result[0] == false) {
+                $res->message = $result[1];
+                $res->code = $result[2];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->message = $result[1];
+            $res->code = $result[2];
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
         case "getBasket":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -131,10 +185,8 @@ try {
                 $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
                 $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
             }
-            $productIdx=$req->productIdx;
-            $optionIdx=$req->optionIdx;
-            $count=$req->count;
-            $result = addBasket($userIdx,$productIdx,$optionIdx,$count);
+            $option=$req->option;
+            $result = addBasket($userIdx,$option);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = $result[2];

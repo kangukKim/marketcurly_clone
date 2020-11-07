@@ -55,8 +55,96 @@ function isValidUserIdx($userIdx)
 
     return $res[0]['exist'];
 }
+//PATCH
+function changeBasket($userIdx,$option){
+    $pdo = pdoSqlConnect();
+    for($i=0;$i<count($option);$i++){
+        if($option[$i]->optionCount==0){
+            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            return array(false, strval($st->fetchAll()[0]['optionName'])."의 개수를 1개 이상 선택하고 다시 시도해주십시오.",423);
+        }
+        $query = "select EXISTS(select * from ProductOption where optionIdx = ? and isDeleted='N') exist;";
+        $st = $pdo->prepare($query);
+        $st->execute([$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            return array(false, "존재하지 않는 제품이 섞여있습니다.",420);
+        }
+        $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx = ? and isDeleted='N') exist;";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            return array(false, strval($st->fetchAll()[0]['optionName'])."는 장바구니에 존재하지 않는 제품입니다.",422);
+        }
+    }
+    try{
+        $pdo->beginTransaction();
+        for($i=0;$i<count($option);$i++){
+            $query = "update Basket set needCount = ? where userIdx=? and optionIdx=?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionCount,$userIdx, $option[$i]->optionIdx]);
+        }
+        $pdo->commit();
+        return array(True,"장바구니가 업데이트 되었습니다.",200);
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
 
-
+//DELETE
+function deleteBasket($userIdx, $option){
+    $pdo = pdoSqlConnect();
+    for($i=0;$i<count($option);$i++){
+        $query = "select EXISTS(select * from ProductOption where optionIdx = ? and isDeleted='N') exist;";
+        $st = $pdo->prepare($query);
+        $st->execute([$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            return array(false, "존재하지 않는 제품이 섞여있습니다.",420);
+        }
+        $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx = ? and isDeleted='N') exist;";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            return array(false, strval($st->fetchAll()[0]['optionName'])."는 장바구니에 존재하지 않는 제품입니다.",422);
+        }
+    }
+    try{
+        $pdo->beginTransaction();
+        for($i=0;$i<count($option);$i++){
+            $query = "update Basket set isDeleted = 'Y' where userIdx=? and optionIdx=?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx, $option[$i]->optionIdx]);
+        }
+        $pdo->commit();
+        return array(True,"선택한 제품을 삭제하였습니다.",200);
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
 //GET
 function getBasket($userIdx)
 {
@@ -646,40 +734,68 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 
 
 //POST
-function addBasket($userIdx,$productIdx,$optionIdx,$count){
+function addBasket($userIdx,$option){
+
 
     $pdo = pdoSqlConnect();
-    $query = "select EXISTS(select * from ProductOption where productIdx = ? and optionIdx = ? and isDeleted='N') exist;";
-    $st = $pdo->prepare($query);
-    $st->execute([$productIdx,$optionIdx]);
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $bool = $st->fetchAll()[0]['exist'];
-    if(!$bool){
-        return array(false, "존재하지 않는 제품입니다.",420);
-    }
-    $query = "select quantity from Stock where optionIdx=?;";
-    $st = $pdo->prepare($query);
-    $st->execute([$optionIdx]);
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $bool = $st->fetchAll()[0]['quantity'];
-    if(!$bool){
-        return array(false, "품절된 제품입니다.",421);
-    }
-    $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx=? and isDeleted='N') exist;";
-    $st = $pdo->prepare($query);
-    $st->execute([$userIdx,$optionIdx]);
-    $st->setFetchMode(PDO::FETCH_ASSOC);
-    $bool = $st->fetchAll()[0]['exist'];
-    if($bool==0){
-        $query = "insert into Basket (userIdx, productIdx, optionIdx,needCount) values(?,?,?,?);";
+    for($i=0;$i<count($option);$i++){
+        $query = "select EXISTS(select * from ProductOption where productIdx = ? and optionIdx = ? and isDeleted='N') exist;";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx,$productIdx,$optionIdx,$count]);
-        return array(True,"장바구니에 상품을 담았습니다.",201);
+        $st->execute([$option[$i]->productIdx,$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            return array(false, "존재하지 않는 제품이 섞여있습니다.",420);
+        }
     }
-    $query = "update Basket set needCount = needCount+? where userIdx=? and optionIdx=?;";
-    $st = $pdo->prepare($query);
-    $st->execute([$count,$userIdx,$optionIdx]);
-    return array(True,"장바구니에 상품을 담았습니다. 이미 담으신 상품이 있어 추가되었습니다.",202);
+
+    try{
+        $bool2=0;
+        $pdo->beginTransaction();
+        for($i=0;$i<count($option);$i++){
+            $query = "select quantity from Stock where optionIdx=?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            $bool = $st->fetchAll()[0]['quantity'];
+            if(!$bool){
+                $pdo->rollBack();
+                $query = "select optionName from ProductOption where optionIdx=?;";
+                $st = $pdo->prepare($query);
+                $st->execute([$option[$i]->optionIdx]);
+                $st->setFetchMode(PDO::FETCH_ASSOC);
+                return array(false, strval($st->fetchall()[0]['optionName'])."은 품절된 제품입니다. 다시 골라주세요.",421);
+            }
+            $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx=? and isDeleted='N') exist;";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx,$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            $bool = $st->fetchAll()[0]['exist'];
+            if($bool==0){
+                $query = "insert into Basket (userIdx, productIdx, optionIdx,needCount) values(?,?,?,?);";
+                $st = $pdo->prepare($query);
+                $st->execute([$userIdx,$option[$i]->productIdx,$option[$i]->optionIdx,$option[$i]->count]);
+
+            }
+            else {
+                $query = "update Basket set needCount = needCount+? where userIdx=? and optionIdx=?;";
+                $st = $pdo->prepare($query);
+                $st->execute([$option[$i]->count, $userIdx, $option[$i]->optionIdx]);
+                $bool2 = 1;
+            }
+        }
+        $pdo->commit();
+        if($bool2==0){
+            return array(True,"장바구니에 상품을 담았습니다.",200);
+        }
+        return array(True,"이미 담으신 상품이 있어 추가되었습니다.",202);
+
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
 
 }
 

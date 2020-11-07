@@ -15,11 +15,8 @@ ini_set('default_charset', 'utf8mb4');
 //error_reporting(E_ALL); ini_set("display_errors", 1);
 //Main Server API
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
-    /* ******************   JWT   ****************** */
-    $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
+    /* ******************   GET   ****************** */
     $r->addRoute('GET', '/login/jwt', ['JWTController', 'validateJwt']);  // JWT 유효성 검사
-
-
     $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
     $r->addRoute('GET', '/page/home', ['IndexController', 'getHomePage']);
     $r->addRoute('GET', '/page/recommend', ['IndexController', 'getRecommendPage']);
@@ -28,17 +25,19 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/product/{productIdx}/order', ['IndexController', 'getSelectPage']);
     $r->addRoute('GET', '/basket', ['IndexController', 'getBasket']);
 
-
+    /* ******************   POST   ****************** */
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
     $r->addRoute('POST', '/basket', ['IndexController', 'addBasket']);
+    $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
 
 
+    /* ******************   DELETE   ****************** */
+    $r->addRoute('DELETE', '/basket', ['IndexController', 'deleteBasket']);
 
-//    $r->addRoute('GET', '/users', 'get_all_users_handler');
-//    // {id} must be a number (\d+)
-//    $r->addRoute('GET', '/user/{id:\d+}', 'get_user_handler');
-//    // The /{title} suffix is optional
-//    $r->addRoute('GET', '/articles/{id:\d+}[/{title}]', 'get_article_handler');
+    /* ******************   PATCH   ****************** */
+    $r->addRoute('PATCH', '/basket', ['IndexController', 'changeBasket']);
+
+
 });
 
 // Fetch method and URI from somewhere
