@@ -230,16 +230,18 @@ where productIdx=? and Stock.isDeleted='N'";
 
 function getUserInfo($userIdx){
     $pdo = pdoSqlConnect();
-    $query ="select distinct concat(name,'님') as userName, level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(point.point,' 원') as point from User
+    $query ="select distinct concat(name,'님') as userName, User.level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(point.point,' 원') as point, profit from User
     left outer join (select userIdx, count(*) as couponCount from UserCoupon where userIdx=? and isUsed='N' and isDeleted='N')
     as coupon
     on coupon.userIdx=User.userIdx
     left outer join(select userIdx, count(*) as basketCount from Basket where userIdx=? and isDeleted='N')
     as basket
     on User.userIdx=basket.userIdx
+    left outer join Profit
+    on User.level=Profit.level
     inner join (select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N')
                         -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point) as point on 1=1
-where User.userIdx=?";
+where User.userIdx=?;";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
