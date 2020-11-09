@@ -369,10 +369,12 @@ on Profit.level=P.level";
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $res->profit = $st->fetchAll()[0]['profit'];
     }
-    $query = "select productIdx, ProductOption.optionIdx, productName, optionName,originalPrice,clientPrice,if(quantity!=0,'N','Y') as isSoldOut from ProductOption
+    $query = "select ProductOption.productIdx, ProductOption.optionIdx, productName, optionName,originalPrice,clientPrice,if(quantity!=0,'N','Y') as isSoldOut from ProductOption
 left outer join Stock
 on ProductOption.optionIdx = Stock.optionIdx
-where productIdx=? and Stock.isDeleted='N'";
+left outer join (select productIdx, productName from Product) as P
+on ProductOption.productIdx=P.productIdx
+where ProductOption.productIdx=? and Stock.isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
