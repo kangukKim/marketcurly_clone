@@ -23,7 +23,10 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/product/{productIdx}', ['IndexController', 'getProductInfo']);
     $r->addRoute('GET', '/user', ['IndexController', 'getUserInfo']);
     $r->addRoute('GET', '/product/{productIdx}/order', ['IndexController', 'getSelectPage']);
-    $r->addRoute('GET', '/basket', ['IndexController', 'getBasket']);
+    $r->addRoute('GET', '/page/basket', ['IndexController', 'getBasket']);
+    $r->addRoute('GET', '/page/pay', ['IndexController', 'getPay']);
+    $r->addRoute('GET', '/page/pay/coupon', ['IndexController', 'getCoupon']);
+
 
     /* ******************   POST   ****************** */
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
