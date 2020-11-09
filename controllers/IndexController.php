@@ -26,6 +26,41 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "addPay":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $destination=$req->destination;
+            $receivePlace=$req->receivePlace;
+            $howToEnter=$req->howToEnter;
+            $entrancePwd=$req->entrancePwd;
+            $timeToMsg=$req->timeToMsg;
+            $usedCouponIdx=$req->usedCouponIdx;
+            $usedPoint = $req->usedPoint;
+            $savedPoint=$req->savedPoint;
+            $originalPrice = $req->originalPrice;
+            $clientPrice = $req->clientPrice;
+            $wayToPay=$req->wayToPay;
+            $orderList=$req->orderList;
+            $rand = strtoupper(substr(uniqid(time()),0,6));
+            $orderNum = strval(date("YmdHis"). $rand) ;
+            $result=addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
+            break;
         case "getCoupon":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -39,7 +74,8 @@ try {
                 $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
                 $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
             }
-            $result=getCoupon($userIdx);
+            $option=$req->option;
+            $result=getCoupon($userIdx,$option);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = $result[2];
@@ -66,7 +102,8 @@ try {
                 $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
                 $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
             }
-            $result=getPay($userIdx);
+            $option=$req->option;
+            $result=getPay($userIdx,$option);
             if ($result[0] == false) {
                 $res->message = $result[1];
                 $res->code = $result[2];

@@ -12,7 +12,7 @@ date_default_timezone_set('Asia/Seoul');
 ini_set('default_charset', 'utf8mb4');
 
 //에러출력하게 하는 코드
-//error_reporting(E_ALL); ini_set("display_errors", 1);
+error_reporting(E_ALL); ini_set("display_errors", 1);
 //Main Server API
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
     /* ******************   GET   ****************** */
@@ -24,15 +24,15 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/user', ['IndexController', 'getUserInfo']);
     $r->addRoute('GET', '/product/{productIdx}/order', ['IndexController', 'getSelectPage']);
     $r->addRoute('GET', '/page/basket', ['IndexController', 'getBasket']);
-    $r->addRoute('GET', '/page/pay', ['IndexController', 'getPay']);
-    $r->addRoute('GET', '/page/pay/coupon', ['IndexController', 'getCoupon']);
+    $r->addRoute('POST', '/page/pay', ['IndexController', 'getPay']);
+    $r->addRoute('POST', '/page/pay/coupon', ['IndexController', 'getCoupon']);
 
 
     /* ******************   POST   ****************** */
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
     $r->addRoute('POST', '/basket', ['IndexController', 'addBasket']);
     $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
-
+    $r->addRoute('POST', '/pay', ['IndexController', 'addPay']);
 
     /* ******************   DELETE   ****************** */
     $r->addRoute('DELETE', '/basket', ['IndexController', 'deleteBasket']);

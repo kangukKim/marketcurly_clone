@@ -4,7 +4,7 @@
 //validation
 function isValidUserId($userId){
     $pdo = pdoSqlConnect();
-    $query = "select EXISTS(select * from User where userId = ?) exist;";
+    $query = "select EXISTS(select * from User where userId = ? and isDeleted='N') exist;";
     $st = $pdo->prepare($query);
     $st->execute([$userId]);
     //    $st->execute();
@@ -60,7 +60,7 @@ function changeBasket($userIdx,$option){
     $pdo = pdoSqlConnect();
     for($i=0;$i<count($option);$i++){
         if($option[$i]->optionCount==0){
-            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $query = "select optionName from ProductOption where optionIdx = ? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$option[$i]->optionIdx]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -80,7 +80,7 @@ function changeBasket($userIdx,$option){
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
-            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $query = "select optionName from ProductOption where optionIdx = ? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$option[$i]->optionIdx]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -122,7 +122,7 @@ function deleteBasket($userIdx, $option){
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
-            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $query = "select optionName from ProductOption where optionIdx = ? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$option[$i]->optionIdx]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -146,7 +146,7 @@ function deleteBasket($userIdx, $option){
     }
 }
 //GET
-function getCoupon($userIdx){
+function getCoupon($userIdx,$option){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from UserCoupon where userIdx = ? and isUsed='N' and isDeleted='N') exist;";
     $st = $pdo->prepare($query);
@@ -156,34 +156,41 @@ function getCoupon($userIdx){
     if(!$bool){
         return array(false, "쿠폰이 존재하지 않습니다.",427);
     }
-    $query="select UserCoupon.couponIdx, R2.couponName, R2.contents, ifnull(R.discount,0) as discount, date_format(R2.expiration, '%Y년 %m월 %d일 %h시 만료') as expiration, if(isnull(R.couponIdx),'N','Y') as isAvailable from UserCoupon
-    inner join
-    (select couponName,contents,couponIdx,expiration from Coupon) as R2
-    on R2.couponIdx=UserCoupon.couponIdx
-    left outer join
-(select couponName, contents, couponIdx, cast(if(if(isnull(P.discountPercent),discountPrice,productPrice*discountPercent/100)>maxDiscount,maxdiscount,
-        if(isnull(P.discountPercent),discountPrice,productPrice*discountPercent/100)) as unsigned int) as discount, expiration from
-(select couponName, contents, userIdx,UserCoupon.couponIdx as couponIdx, ifnull(sum(needCount),(select sum(needCount) as needCount from Basket where userIdx=? and Basket.isDeleted='N'))  as needCount,
-       ifnull(sum(productPrice),(select sum(P1.clientPrice*Basket.needCount) as productPrice from Basket
-           inner join (select optionIdx,clientPrice from ProductOption) as P1
-on Basket.optionIdx=P1.optionIdx where userIdx=? and Basket.isDeleted='N')) as productPrice,discountPercent,discountPrice,minPrice,maxDiscount,expiration from UserCoupon
-left outer join (select couponIdx , couponName, discountPercent, discountPrice, contents, minCount, minPrice, maxDiscount, expiration from Coupon) as P1
-on P1.couponIdx=UserCoupon.couponIdx
-left outer join (select couponIdx,productIdx from CouponProduct) as P2
-on P2.couponIdx=UserCoupon.couponIdx
-left outer join (select productIdx,count(needCount) as needCount from Basket group by productIdx) as P3
-on P3.productIdx=P2.productIdx
-left outer join (select productIdx, sum(P5.clientPrice*Basket.needCount) as productPrice from Basket inner join (select optionIdx,clientPrice from ProductOption) as P5
-on Basket.optionIdx=P5.optionIdx
-group by productIdx) as P4
-on P2.productIdx=P4.productIdx
-where userIdx=? and UserCoupon.isUsed='N' and UserCoupon.isDeleted='N' and (isnull(P2.productIdx) or P2.productIdx in (select productIdx from Basket where userIdx=?))
-group by UserCoupon.couponIdx,minPrice,minCount
-having if(minPrice=0, needCount>=minCount,productPrice>=minPrice))as P) as R
-on R.couponIdx=UserCoupon.couponIdx
-where userIdx=? and isUsed='N'and isDeleted='N' and timestampdiff(minute, R2.expiration, now())<0;";
+    for($i=0;$i<count($option);$i++){
+        $options[$i]=$option[$i]->optionIdx;
+    }
+    $query="select couponIdx,couponName, contents, if(isnull(needCount),'N',if(minPrice=0,if(needCount>=minCount,'Y','N'),if(totalPrice>=minPrice,'Y','N'))) as isAvailable, date_format(expiration, '%Y년 %m월 %d일 %h시 만료') as expiration,
+       ifnull(cast(if(if(isnull(discountPercent),discountPrice,totalPrice*discountPercent/100)>maxDiscount,maxDiscount,
+        if(isnull(discountPercent),discountPrice,totalPrice*discountPercent/100)) as unsigned int),0) as discount
+from(
+select UserCoupon.couponIdx,productIdx, couponName, contents, discountPercent,discountPrice, userIdx,  if(isnull(productIdx),(select sum(needCount) from Basket
+    where FIND_IN_SET(optionIdx,:array) and Basket.isDeleted='N'),sum(needCount)) as needCount,
+       if(isnull(productIdx),(
+select sum(needCount*clientPrice) from Basket as B1
+    inner join (select * from ProductOption where isDeleted='N') as P1
+on B1.optionIdx=P1.optionIdx
+where FIND_IN_SET(B1.optionIdx,:array) and userIdx=:userIdx and B1.isDeleted='N')
+           ,sum(totalPrice)) as totalPrice,
+       minCount, minPrice, maxDiscount, expiration
+       from UserCoupon
+inner join (select * from Coupon where isDeleted='N') as C
+on UserCoupon.couponIdx=C.couponIdx
+left outer join (select productIdx, couponIdx from CouponProduct where isDeleted='N') as C2
+on C.couponIdx=C2.couponIdx
+left outer join
+(select  Basket.productIdx as  productdx,sum(needCount) as needCount, sum(clientPrice*needCount) as totalPrice from Basket
+inner join (select * from ProductOption where isDeleted='N') as P
+on Basket.optionIdx=P.optionIdx
+where FIND_IN_SET(Basket.optionIdx,:array) and userIdx=:userIdx and Basket.isDeleted='N'
+group by P.productIdx) as P2
+on P2.productdx=C2.productIdx
+where userIdx=1 and timestampdiff(minute, expiration, now())<0
+group by couponIdx) as D";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
+    $ids_string=implode(',',$options);
+    $st->bindParam(':array',$ids_string);
+    $st->bindParam(':userIdx',$userIdx);
+    $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res = $st->fetchAll();
     return array(True, "쿠폰 목록입니다.",$res);
@@ -191,7 +198,7 @@ where userIdx=? and isUsed='N'and isDeleted='N' and timestampdiff(minute, R2.exp
 }
 
 
-function getPay($userIdx){
+function getPay($userIdx,$option){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from Basket where userIdx = ? and isDeleted='N') exist;";
     $st = $pdo->prepare($query);
@@ -201,6 +208,23 @@ function getPay($userIdx){
     if(!$bool){
         return array(false, "장바구니에 제품을 추가해주세요.",426);
     }
+
+    for($i=0;$i<count($option);$i++){
+        $options[$i]=$option[$i]->optionIdx;
+        $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx = ? and isDeleted='N') exist;";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$option[$i]->optionIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $bool = $st->fetchAll()[0]['exist'];
+        if(!$bool){
+            $query = "select optionName from ProductOption where optionIdx = ?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$option[$i]->optionIdx]);
+            $st->setFetchMode(PDO::FETCH_ASSOC);
+            return array(false, strval($st->fetchAll()[0]['optionName'])."는 장바구니에 존재하지 않는 제품입니다.",422);
+        }
+    }
+
     $query = "select ifnull(address,'주소를 입력해주세요.') as address from User where userIdx=?";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
@@ -208,13 +232,16 @@ function getPay($userIdx){
     $res = new stdClass();
     $res->address = $st->fetchAll()[0]['address'];
     $query="select optionName, quantity, needCount from Basket
-inner join (select optionIdx,quantity from Stock) as P1
+inner join (select optionIdx,quantity from Stock where isDeleted='N') as P1
 on P1.optionIdx=Basket.optionIdx
-inner join (select optionIdx, optionName from ProductOption) as P2
+inner join (select optionIdx, optionName from ProductOption where isDeleted='N') as P2
 on P2.optionIdx=Basket.optionIdx
-where userIdx=?";
+where userIdx=:userIdx and FIND_IN_SET(Basket.optionIdx,:array) and Basket.isDeleted='N'";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx]);
+    $ids_string=implode(',',$options);
+    $st->bindParam(':array',$ids_string);
+    $st->bindParam(':userIdx',$userIdx);
+    $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $result = $st->fetchAll();
     for($i=0;$i<count($result);$i++){
@@ -226,18 +253,18 @@ where userIdx=?";
             return array(false, strval($result[$i]['optionName'])."는 ".strval($result[$i]['quantity'])."개 까지만 주문할 수 있습니다. 수량 조정 후 다시 주문해주세요",425);
         }
     }
-    $query="select Basket.productIdx,Basket.optionIdx,productName, optionName, pictureUrl as productImg,needCount  as optionCount from Basket
-inner join (select productIdx, productName, packingType from Product) as P1
+    $query="select Basket.productIdx,Basket.optionIdx,productName, optionName, pictureUrl as productImg,needCount as optionCount,FORMAT(sum(originalPrice*needCount),0) originalPrice,FORMAT(sum(clientPrice*needCount),0) clientPrice  from Basket
+inner join (select productIdx, productName, packingType from Product where isDeleted='N') as P1
 on Basket.productIdx=P1.productIdx
-left outer join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as P2
+left outer join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as P2
 on Basket.productIdx= P2.productIdx
-left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption) as P3
+left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
 on Basket.optionIdx= P3.optionIdx
-left outer join (select optionIdx,quantity from Stock) as P4
-on Basket.optionIdx=P4.quantity
-where Basket.isDeleted='N' and userIdx=?";
+where Basket.isDeleted='N' and userIdx=:userIdx and FIND_IN_SET(Basket.optionIdx,:array)";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx]);
+    $st->bindParam(':array',$ids_string);
+    $st->bindParam(':userIdx',$userIdx);
+    $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->orderInfo=$st->fetchAll();
 
@@ -245,7 +272,7 @@ where Basket.isDeleted='N' and userIdx=?";
        WHEN 11 THEN CONCAT(LEFT(phoneNumber, 3), '-', MID(phoneNumber, 4, 4), '-', RIGHT(phoneNumber, 4))
        WHEN 10 THEN CONCAT(LEFT(phoneNumber, 3), '-', MID(phoneNumber, 4, 3), '-', RIGHT(phoneNumber, 4))
         end as phoneNumber
-        from User where userIdx=?;";
+        from User where userIdx=? and isDeleted='N';";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -256,44 +283,57 @@ where Basket.isDeleted='N' and userIdx=?";
     $st->setFetchMode(PDO::FETCH_ASSOC);
 
     $res->couponAndProfit['allCouponCount']=$st->fetchAll()[0]['allCouponCount'];;
-    $query = "select count(*) as availableCount from (
-select couponName, contents, userIdx,UserCoupon.couponIdx as couponIdx, ifnull(sum(needCount),(select sum(needCount) as needCount from Basket where userIdx=? and Basket.isDeleted='N'))  as needCount,
-       ifnull(sum(productPrice),(select sum(P1.clientPrice*Basket.needCount) as productPrice from Basket
-           inner join (select optionIdx,clientPrice from ProductOption) as P1
-on Basket.optionIdx=P1.optionIdx where userIdx=? and Basket.isDeleted='N')) as productPrice,discountPercent,discountPrice,minPrice,maxDiscount,expiration from UserCoupon
-left outer join (select couponIdx , couponName, discountPercent, discountPrice, contents, minCount, minPrice, maxDiscount, expiration from Coupon) as P1
-on P1.couponIdx=UserCoupon.couponIdx
-left outer join (select couponIdx,productIdx from CouponProduct) as P2
-on P2.couponIdx=UserCoupon.couponIdx
-left outer join (select productIdx,count(needCount) as needCount from Basket group by productIdx) as P3
-on P3.productIdx=P2.productIdx
-left outer join (select productIdx, sum(P5.clientPrice*Basket.needCount) as productPrice from Basket inner join (select optionIdx,clientPrice from ProductOption) as P5
-on Basket.optionIdx=P5.optionIdx
-group by productIdx) as P4
-on P2.productIdx=P4.productIdx
-where userIdx=? and UserCoupon.isUsed='N' and UserCoupon.isDeleted='N' and timestampdiff(minute, expiration, now())<0 and (isnull(P2.productIdx) or P2.productIdx in (select productIdx from Basket where userIdx=?))
-group by UserCoupon.couponIdx,minPrice,minCount
-having if(minPrice=0, needCount>=minCount,productPrice>=minPrice)) as P;";
+    $query = "select count(*) as availableCount from
+(select UserCoupon.couponIdx,productIdx, couponName, contents, discountPercent,discountPrice, userIdx,  if(isnull(productIdx),(select sum(needCount) from Basket
+    where FIND_IN_SET(optionIdx,:array) and Basket.isDeleted='N'),sum(needCount)) as needCount,
+       if(isnull(productIdx),(
+select sum(needCount*clientPrice) from Basket as B1
+    inner join (select * from ProductOption where isDeleted='N') as P1
+on B1.optionIdx=P1.optionIdx
+where FIND_IN_SET(B1.optionIdx,:array) and userIdx=:userIdx and B1.isDeleted='N')
+           ,sum(totalPrice)) as totalPrice,
+       minCount, minPrice, maxDiscount, expiration
+       from UserCoupon
+inner join (select * from Coupon where isDeleted='N') as C
+on UserCoupon.couponIdx=C.couponIdx
+left outer join (select productIdx, couponIdx from CouponProduct where isDeleted='N') as C2
+on C.couponIdx=C2.couponIdx
+left outer join
+(select  Basket.productIdx as  productdx,sum(needCount) as needCount, sum(clientPrice*needCount) as totalPrice from Basket
+inner join (select * from ProductOption where isDeleted='N') as P
+on Basket.optionIdx=P.optionIdx
+where FIND_IN_SET(Basket.optionIdx,:array) and userIdx=:userIdx and Basket.isDeleted='N'
+group by P.productIdx) as P2
+on P2.productdx=C2.productIdx
+where userIdx=:userIdx
+group by couponIdx
+having !isnull(needCount)
+) as D
+where if(minPrice=0, needCount>=minCount,totalPrice>=minPrice) and timestampdiff(minute, expiration, now())<0;";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx,$userIdx,$userIdx,$userIdx]);
+    $st->bindParam(':array',$ids_string);
+    $st->bindParam(':userIdx',$userIdx);
+    $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->couponAndProfit['availableCouponCount']=$st->fetchAll()[0]['availableCount'];
-    $query="select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N')
-                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point";
+    $query="select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N' and isDeleted='N')
+                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y'and isDeleted='N') as point from Point where isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx,$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->couponAndProfit['availablePoint']=$st->fetchAll()[0]['point'];
-    $query="select ifnull(sum(originalPrice*needCount),0) as totalPrice, ifnull((sum(originalPrice*needCount)-sum(clientPrice*needCount)),0) as salePrice, ifnull(if(sum(clientPrice*needCount)<40000,sum(clientPrice*needCount)+3000,sum(clientPrice*needCount)),0) as priceToPay, ifnull(cast(sum(clientPrice*needCount)*profit/100 as signed integer),0) as profitPrice, profit as profitPercent, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
+    $query="select ifnull(sum(originalPrice*needCount),0) as totalPrice, ifnull((sum(originalPrice*needCount)-sum(clientPrice*needCount)),0) as salePrice, ifnull(sum(clientPrice*needCount),0) as orderPrice,ifnull(if(sum(clientPrice*needCount)<40000,sum(clientPrice*needCount)+3000,sum(clientPrice*needCount)),0) as priceToPay, ifnull(cast(sum(clientPrice*needCount)*profit/100 as signed integer),0) as profitPrice, profit as profitPercent, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
 left outer join (select optionIdx, originalPrice, clientPrice from ProductOption) as P3
 on Basket.optionIdx= P3.optionIdx
 left outer join (select userIdx,level from User) as U
 on Basket.userIdx = U.userIdx
 left outer join (select level,profit from Profit) as P
 on U.level=P.level
-where Basket.userIdx=? and Basket.isDeleted='N'";
+where Basket.userIdx=:userIdx and Basket.isDeleted='N' and FIND_IN_SET(Basket.optionIdx,:array)";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx]);
+    $st->bindParam(':array',$ids_string);
+    $st->bindParam(':userIdx',$userIdx);
+    $st->execute();
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->price = $st->fetchAll()[0];
     return array(True, "주문서입니다.",$res);
@@ -301,20 +341,20 @@ where Basket.userIdx=? and Basket.isDeleted='N'";
 function getBasket($userIdx)
 {
     $pdo = pdoSqlConnect();
-    $query = "select ifnull(address,'주소를 입력해주세요.') as address from User where userIdx=?";
+    $query = "select ifnull(address,'주소를 입력해주세요.') as address from User where userIdx=? and isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res = new stdClass();
     $res->address = $st->fetchAll()[0]['address'];
-    $query = "select Basket.productIdx, Basket.optionIdx, productName, optionName, pictureUrl as productImg,needCount  as optionCount, originalPrice, clientPrice, left(P1.packingType,2) as type from Basket
-inner join (select productIdx, productName, packingType from Product) as P1
+    $query = "select Basket.productIdx,Basket.optionIdx, needCount, productName, optionName, pictureUrl as productImg, originalPrice, clientPrice, left(P1.packingType,2) as type from Basket
+inner join (select productIdx, productName, packingType from Product where isDeleted='N') as P1
 on Basket.productIdx=P1.productIdx
-left outer join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as P2
+left outer join (select productIdx, pictureUrl from ProductPic where ProductPic.pictureKind='main' and isDeleted='N') as P2
 on Basket.productIdx= P2.productIdx
-left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption) as P3
+left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
 on Basket.optionIdx= P3.optionIdx
-where Basket.isDeleted='N' and userIdx=?";
+where Basket.isDeleted='N' and userIdx=?;";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -334,11 +374,11 @@ where Basket.isDeleted='N' and userIdx=?";
         }
     }
     $query="select ifnull(sum(originalPrice*needCount),0) as totalPrice, ifnull((sum(originalPrice*needCount)-sum(clientPrice*needCount)),0) as salePrice, ifnull(if(sum(clientPrice*needCount)<40000,sum(clientPrice*needCount)+3000,sum(clientPrice*needCount)),0) as priceToPay, ifnull(cast(sum(clientPrice*needCount)*profit/100 as signed integer),0) as profitPrice, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
-left outer join (select optionIdx, originalPrice, clientPrice from ProductOption) as P3
+left outer join (select optionIdx, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
 on Basket.optionIdx= P3.optionIdx
-left outer join (select userIdx,level from User) as U
+left outer join (select userIdx,level from User where isDeleted='N') as U
 on Basket.userIdx = U.userIdx
-left outer join (select level,profit from Profit) as P
+left outer join (select level,profit from Profit where isDeleted='N') as P
 on U.level=P.level
 where Basket.userIdx=? and Basket.isDeleted='N'";
     $st = $pdo->prepare($query);
@@ -362,8 +402,8 @@ function getSelectPage($userIdx,$productIdx){
     $res = new stdClass();
     if($userIdx!=null) {
         $query = "select profit from Profit
-inner join (select level from User where userIdx=?) as P
-on Profit.level=P.level";
+inner join (select level from User where userIdx=? and isDeleted='N') as P
+on Profit.level=P.level where Profit.isDeleted='N'";
         $st = $pdo->prepare($query);
         $st->execute([$userIdx]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -372,9 +412,9 @@ on Profit.level=P.level";
     $query = "select ProductOption.productIdx, ProductOption.optionIdx, productName, optionName,originalPrice,clientPrice,if(quantity!=0,'N','Y') as isSoldOut from ProductOption
 left outer join Stock
 on ProductOption.optionIdx = Stock.optionIdx
-left outer join (select productIdx, productName from Product) as P
+left outer join (select productIdx, productName from Product where isDeleted='N') as P
 on ProductOption.productIdx=P.productIdx
-where ProductOption.productIdx=? and Stock.isDeleted='N'";
+where ProductOption.productIdx=? and Stock.isDeleted='N' and ProductOption.isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -394,8 +434,8 @@ function getUserInfo($userIdx){
     left outer join Profit
     on User.level=Profit.level
     inner join (select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N')
-                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point) as point on 1=1
-where User.userIdx=?;";
+                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point where isDeleted='N') as point on 1=1
+where User.userIdx=? and User.isDeleted='N';";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -415,7 +455,7 @@ function getProductInfo($userIdx,$productIdx){
     if(!$bool){
         return array(false, "존재하지않는제품입니다.",420);
     }
-    $query = "select count(*) as reviewCount from Review where productIdx=?";
+    $query = "select count(*) as reviewCount from Review where productIdx=? and isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -425,7 +465,7 @@ function getProductInfo($userIdx,$productIdx){
         $query="select User.level, profit, concat(cast(((profit*(select min(clientPrice)/100 from ProductOption where productIdx=?)))as signed integer),'원 적립') as profitPrice from User
 inner join Profit
 on User.level=Profit.level
-where userIdx=?";
+where userIdx=? and User.isDeleted='N' and Profit.isDeleted='N'";
         $st = $pdo->prepare($query);
         $st->execute([$productIdx,$userIdx]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -456,11 +496,11 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
-         as salePercent from ProductOption group by productIdx) as PO
+         as salePercent from ProductOption where isDeleted='N' group by productIdx ) as PO
 on PO.productIdx=Product.productIdx
-inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
 on pic.productIdx=Product.productIdx
-where Product.productIdx=?;";
+where Product.productIdx=? and Product.isDeleted='N';";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -482,9 +522,9 @@ where Product.productIdx=?;";
     $res->productDetail = $st->fetchAll()[0]['pictureUrl'];
     $query = "select title, isBest, level, replace(name, substr(name, 2,1 ), '*') as userName, if(r.cnt>0,1,0) as isPic, date_format(Review.createdAt,'%Y.%m.%d') as createdAt from Review
 inner join User on Review.userIdx = User.userIdx
-left outer join (select reviewIdx, count(*) as cnt from ReviewPic group by reviewIdx) as r
+left outer join (select reviewIdx, count(*) as cnt from ReviewPic where isDeleted='N' group by reviewIdx) as r
 on Review.reviewIdx=r.reviewIdx
-where Review.productIdx=? and Review.isDeleted='N';
+where Review.productIdx=? and Review.isDeleted='N' and User.isDeleted='N';
 ";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
@@ -492,7 +532,7 @@ where Review.productIdx=? and Review.isDeleted='N';
     $res->review = $st->fetchAll();
     $query = "select title as inquiryTitle, replace(name, substr(name, 2,1 ), '*') as userName, isLocked, date_format(Inquiry.createdAt,'%Y.%m.%d') as createdAt, if(isnull(A.contents),'답변준비중','답변완료') as isAnswered from Inquiry
 inner join User on Inquiry.userIdx = User.userIdx
-left outer join Answer A on Inquiry.inquiryIdx = A.inquiryIdx where Inquiry.productIdx=?;";
+left outer join Answer A on Inquiry.inquiryIdx = A.inquiryIdx where Inquiry.productIdx=? and Inquiry.isDeleted='N' and User.isDeleted='N' and A.isDeleted='N';";
     $st = $pdo->prepare($query);
     $st->execute([$productIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
@@ -526,7 +566,7 @@ function getRecommendPage($userIdx){
         $query = "select if(count(*)=0,'정육·계란',category) as category from Product
 left outer join Basket
 on Product.productIdx = Basket.productIdx
-where Product.isDeleted='N' and userIdx=?
+where Product.isDeleted='N' and userIdx=? and Basket.isDeleted='N'
 order by Basket.createdAt
 LIMIT 1 ;";
         $st = $pdo->prepare($query);
@@ -562,9 +602,9 @@ inner join
                 when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
                 else 0
                     END
-     as salePercent from ProductOption group by productIdx) as PO
+     as salePercent from ProductOption where isDeleted='N' group by productIdx) as PO
 on PO.productIdx=Product.productIdx
-inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
 on pic.productIdx=PO.productIdx
 inner join (select *
 from(
@@ -573,7 +613,7 @@ from(
 	from Stock
 	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
 		select productIdx, max(quantity)
-		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
 	)
 	order by quantity desc
 ) S group by productIdx) as S1
@@ -610,7 +650,7 @@ inner join
                     END
          as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
-inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' ans isDeleted='N') as pic
 on pic.productIdx=PO.productIdx
 inner join (select *
 from(
@@ -619,12 +659,12 @@ from(
 	from Stock
 	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
 		select productIdx, max(quantity)
-		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
 	)
 	order by quantity desc
 ) S group by productIdx) as S1
 on S1.productIdx = PO.productIdx
-left outer join (select productIdx,count(*) as reviewCount from Review group by productIdx) as R
+left outer join (select productIdx,count(*) as reviewCount from Review where isDeleted='N' group by productIdx) as R
 on R.productIdx=Product.productIdx
 where Product.isDeleted='N' and quantity !=0 and Product.category='샐러드·간편식'
 order by reviewCount desc
@@ -642,7 +682,7 @@ LIMIT 0,5;";
     $query="select Review.productIdx,replace(name, substr(name, 2,1 ), '*') as name, title as review from Review
 inner join User
 on Review.userIdx = User.userIdx
-where Review.isBest='Y' and User.isDeleted='N' and Review.isDeleted='N' and FIND_IN_SET(Review.productIdx,:array)";
+where Review.isBest='Y' and User.isDeleted='N' and Review.isDeleted='N'and User.isDeleted='N' and FIND_IN_SET(Review.productIdx,:array)";
     $st = $pdo->prepare($query);
     $ids_string=implode(',',$productIdx);
     $st->bindParam(':array',$ids_string);
@@ -704,7 +744,7 @@ inner join
                     END
          as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
-inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
 on pic.productIdx=PO.productIdx
 inner join (select *
 from(
@@ -713,7 +753,7 @@ from(
 	from Stock
 	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
 		select productIdx, max(quantity)
-		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
 	)
 	order by quantity desc
 ) S group by productIdx) as S1
@@ -750,7 +790,7 @@ inner join
                     END
          as salePercent from ProductOption group by productIdx) as PO
 on PO.productIdx=Product.productIdx
-inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main') as pic
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
 on pic.productIdx=PO.productIdx
 inner join (select *
 from(
@@ -759,7 +799,7 @@ from(
 	from Stock
 	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
 		select productIdx, max(quantity)
-		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx group by productIdx
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
 	)
 	order by quantity desc
 ) S group by productIdx) as S1
@@ -777,7 +817,7 @@ LIMIT 0,5;";
 function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address, $recommenderId, $event)
 {
     $pdo = pdoSqlConnect();
-    $query = "select EXISTS(select * from User where userId = ?) exist;";
+    $query = "select EXISTS(select * from User where userId = ? and isDeleted='N') exist;";
     $st = $pdo->prepare($query);
     $st->execute([$userId]);
     //    $st->execute();
@@ -890,6 +930,56 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 
 
 //POST
+function addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList){
+    $pdo = pdoSqlConnect();
+    try{
+        $pdo->beginTransaction();
+        $query="insert into OrderDetail (payIdx,userIdx, destination, receivePlace, howToEnter, entrancePwd,
+                         timeToMsg, usedCoupon, usedPoint, originalPrice, price, wayToPay)
+                         values (?,?,?,?,?,?,?,?,?,?,?,?)";
+        $st = $pdo->prepare($query);
+        $st->execute([$orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$originalPrice,$clientPrice,$wayToPay]);
+        for($i=0;$i<count($orderList);$i++){
+            $query = "update Basket set isDeleted='Y' where optionIdx =  ? and userIdx= ?;";
+            $st = $pdo->prepare($query);
+            $st->execute([$orderList[$i]->optionIdx,$userIdx]);
+
+            $query ="update Stock set quantity = quantity - ? where optionIdx=?;";
+            $st = $pdo->prepare($query);
+
+            $st->execute([$orderList[$i]->optionCount,$orderList[$i]->optionIdx]);
+
+            $query ="insert into OrderList (payIdx, productIdx, optionIdx, optionCount) values (?,?,?,?);";
+            $st = $pdo->prepare($query);
+
+            $st->execute([$orderNum,$orderList[$i]->productIdx,$orderList[$i]->optionIdx,$orderList[$i]->optionCount]);
+
+        }
+        if($savedPoint!=null){
+        $query ="insert into Point (isPaid, userIdx, point, payIdx) values ('N',?,?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$savedPoint,$orderNum]);
+        }
+        if($usedPoint!=null){
+            $query ="insert into Point (isPaid, userIdx, point, payIdx) values ('Y',?,?,?);";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx,$usedPoint,$orderNum]);
+        }
+        $query ="insert into Shipping (payIdx,status) values(?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$orderNum,'상품준비중']);
+        $pdo->commit();
+        return array(True,"구매가 완료되었습니다.",200);
+
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
+
+
 function addBasket($userIdx,$option){
 
 
@@ -909,14 +999,14 @@ function addBasket($userIdx,$option){
         $bool2=0;
         $pdo->beginTransaction();
         for($i=0;$i<count($option);$i++){
-            $query = "select quantity from Stock where optionIdx=?;";
+            $query = "select quantity from Stock where optionIdx=? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$option[$i]->optionIdx]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
             $bool = $st->fetchAll()[0]['quantity'];
             if(!$bool){
                 $pdo->rollBack();
-                $query = "select optionName from ProductOption where optionIdx=?;";
+                $query = "select optionName from ProductOption where optionIdx=? and isDeleted='N';";
                 $st = $pdo->prepare($query);
                 $st->execute([$option[$i]->optionIdx]);
                 $st->setFetchMode(PDO::FETCH_ASSOC);
