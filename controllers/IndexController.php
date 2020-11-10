@@ -26,6 +26,27 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "getHistory":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $result = getHistory($userIdx);
+            $res->result=$result[2];
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
         case "addPay":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -51,7 +72,7 @@ try {
             $clientPrice = $req->clientPrice;
             $wayToPay=$req->wayToPay;
             $orderList=$req->orderList;
-            $rand = strtoupper(substr(uniqid(time()),0,6));
+            $rand = strtoupper(substr(uniqid(time()),0,4));
             $orderNum = strval(date("YmdHis"). $rand) ;
             $result=addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList);
             $res->message = $result[1];
@@ -60,7 +81,6 @@ try {
             echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
 
-            break;
         case "getCoupon":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -139,6 +159,7 @@ try {
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
+            $res->basketCount=$result[3];
             $res->message = $result[1];
             $res->code = $result[2];
             $res->isSuccess = True;
@@ -166,6 +187,7 @@ try {
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
+            $res->basketCount=$result[3];
             $res->message = $result[1];
             $res->code = $result[2];
             $res->isSuccess = True;
@@ -285,6 +307,7 @@ try {
                 echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
+            $res->basketCount=$result[3];
             $res->message = $result[1];
             $res->code = $result[2];
             $res->isSuccess = True;

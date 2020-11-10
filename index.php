@@ -18,21 +18,25 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     /* ******************   GET   ****************** */
     $r->addRoute('GET', '/login/jwt', ['JWTController', 'validateJwt']);  // JWT 유효성 검사
     $r->addRoute('GET', '/is-duplicate-id', ['IndexController', 'isValidUserId']);
-    $r->addRoute('GET', '/page/home', ['IndexController', 'getHomePage']);
-    $r->addRoute('GET', '/page/recommend', ['IndexController', 'getRecommendPage']);
+    $r->addRoute('GET', '/home', ['IndexController', 'getHomePage']);
+    $r->addRoute('GET', '/recommend', ['IndexController', 'getRecommendPage']);
     $r->addRoute('GET', '/product/{productIdx}', ['IndexController', 'getProductInfo']);
     $r->addRoute('GET', '/user', ['IndexController', 'getUserInfo']);
-    $r->addRoute('GET', '/product/{productIdx}/order', ['IndexController', 'getSelectPage']);
-    $r->addRoute('GET', '/page/basket', ['IndexController', 'getBasket']);
-    $r->addRoute('POST', '/page/pay', ['IndexController', 'getPay']);
-    $r->addRoute('POST', '/page/pay/coupon', ['IndexController', 'getCoupon']);
+    $r->addRoute('GET', '/product/{productIdx}/option', ['IndexController', 'getSelectPage']);
+    $r->addRoute('GET', '/basket', ['IndexController', 'getBasket']);
+    $r->addRoute('GET', '/history', ['IndexController', 'getHistory']);
+
+
+
+    $r->addRoute('POST', '/order-form', ['IndexController', 'getPay']);
+    $r->addRoute('POST', '/order-form/coupon', ['IndexController', 'getCoupon']);
 
 
     /* ******************   POST   ****************** */
     $r->addRoute('POST', '/user', ['IndexController', 'createUser']);
     $r->addRoute('POST', '/basket', ['IndexController', 'addBasket']);
     $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
-    $r->addRoute('POST', '/pay', ['IndexController', 'addPay']);
+    $r->addRoute('POST', '/order', ['IndexController', 'addPay']);
 
     /* ******************   DELETE   ****************** */
     $r->addRoute('DELETE', '/basket', ['IndexController', 'deleteBasket']);
