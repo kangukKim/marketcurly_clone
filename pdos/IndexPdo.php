@@ -112,10 +112,11 @@ function changeBasket($userIdx,$option){
 //DELETE
 function deleteBasket($userIdx, $option){
     $pdo = pdoSqlConnect();
-    for($i=0;$i<sizeof($option);$i++){
+    $options =explode(';' , $option);
+    for($i=0;$i<sizeof($options);$i++){
         $query = "select EXISTS(select * from ProductOption where optionIdx = ? and isDeleted='N') exist;";
         $st = $pdo->prepare($query);
-        $st->execute([$option[$i]]);
+        $st->execute([$options[$i]]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
@@ -123,23 +124,23 @@ function deleteBasket($userIdx, $option){
         }
         $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx = ? and isDeleted='N') exist;";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx,$option[$i]]);
+        $st->execute([$userIdx,$options[$i]]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
             $query = "select optionName from ProductOption where optionIdx = ? and isDeleted='N';";
             $st = $pdo->prepare($query);
-            $st->execute([$option[$i]]);
+            $st->execute([$options[$i]]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
             return array(false, strval($st->fetchAll()[0]['optionName'])."는 장바구니에 존재하지 않는 제품입니다.",422);
         }
     }
     try{
         $pdo->beginTransaction();
-        for($i=0;$i<sizeof($option);$i++){
+        for($i=0;$i<count($options);$i++){
             $query = "update Basket set isDeleted = 'Y' where userIdx=? and optionIdx=? and isDeleted='N';";
             $st = $pdo->prepare($query);
-            $st->execute([$userIdx, $option[$i]]);
+            $st->execute([$userIdx, $options[$i]]);
         }
         $pdo->commit();
         $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
@@ -389,13 +390,23 @@ where Basket.userIdx=:userIdx and Basket.isDeleted='N' and FIND_IN_SET(Basket.op
 function getBasket($userIdx)
 {
     $pdo = pdoSqlConnect();
+    $res = new stdClass();
+
+    if($userIdx!=null){
+        $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->basketCount = $st->fetchAll()[0]['basketCount'];}
+    else{
+        $res->basketCount=0;
+    }
     $query = "select ifnull(address,'주소를 입력해주세요.') as address from User where userIdx=? and isDeleted='N'";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
-    $res = new stdClass();
     $res->address = $st->fetchAll()[0]['address'];
-    $query = "select Basket.productIdx,Basket.optionIdx, needCount, productName, optionName, pictureUrl as productImg, originalPrice, clientPrice, left(P1.packingType,2) as type from Basket
+    $query = "select Basket.productIdx,Basket.optionIdx, needCount, productName, optionName, pictureUrl as productImg, (needCount*originalPrice) as originalPrice, (needCount*clientPrice) as clientPrice, left(P1.packingType,2) as type from Basket
 inner join (select productIdx, productName, packingType from Product where isDeleted='N') as P1
 on Basket.productIdx=P1.productIdx
 left outer join (select productIdx, pictureUrl from ProductPic where ProductPic.pictureKind='main' and isDeleted='N') as P2
@@ -421,7 +432,33 @@ where Basket.isDeleted='N' and userIdx=?;";
             array_push($res->normalProduct,$result[$i]);
         }
     }
-    $query="select ifnull(sum(originalPrice*needCount),0) as totalPrice, ifnull((sum(originalPrice*needCount)-sum(clientPrice*needCount)),0) as salePrice, ifnull(if(sum(clientPrice*needCount)<40000,sum(clientPrice*needCount)+3000,sum(clientPrice*needCount)),0) as priceToPay, ifnull(cast(sum(clientPrice*needCount)*profit/100 as signed integer),0) as profitPrice, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
+    $query = "select sum(originalPrice*needCount) as totalOriginalPrice, sum(clientPrice*needCount) as totalClientPrice, left(P1.packingType,2) as type from Basket
+inner join (select productIdx, productName, packingType from Product where isDeleted='N') as P1
+on Basket.productIdx=P1.productIdx
+left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
+on Basket.optionIdx= P3.optionIdx
+where Basket.isDeleted='N' and userIdx=?
+group by type;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->typePrice = $st->fetchAll();
+//    for($i=0;$i<count($result);$i++){
+//        if($result[$i]['type']=='냉동'){
+//            $res->frozenProduct['totalOriginalPrice']=$result[$i]['totalOriginalPrice'];
+//            $res->frozenProduct['totalClientPrice']=$result[$i]['totalClientPrice'];
+//        }
+//        else if($result[$i]['type']=='냉장'){
+//            $res->coldProduct['totalOriginalPrice']=$result[$i]['totalOriginalPrice'];
+//            $res->coldProduct['totalClientPrice']=$result[$i]['totalClientPrice'];
+//
+//        }
+//        else{
+//            $res->normalProduct['totalOriginalPrice']=$result[$i]['totalOriginalPrice'];
+//            $res->normalProduct['totalClientPrice']=$result[$i]['totalClientPrice'];
+//        }
+//    }
+    $query="select ifnull(sum(originalPrice*needCount),0) as totalPrice, ifnull((sum(originalPrice*needCount)-sum(clientPrice*needCount)),0) as salePrice, ifnull(if(sum(clientPrice*needCount)<40000,sum(clientPrice*needCount)+3000,sum(clientPrice*needCount)),0) as priceToPay, profit, if(sum(clientPrice*needCount)>=40000,0,3000) as delivery from Basket
 left outer join (select optionIdx, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
 on Basket.optionIdx= P3.optionIdx
 left outer join (select userIdx,level from User where isDeleted='N') as U
@@ -472,7 +509,7 @@ where ProductOption.productIdx=? and Stock.isDeleted='N' and ProductOption.isDel
 
 function getUserInfo($userIdx){
     $pdo = pdoSqlConnect();
-    $query ="select distinct name as userName, User.level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(point.point,' 원') as point, profit from User
+    $query ="select distinct name as userName, User.level, ifnull(concat(coupon.couponCount,' 장'),concat(0, '장')) as couponCount, ifnull(basket.basketCount,0) as basketCount, concat(T.point,' 원') as point, profit from User
     left outer join (select userIdx, count(*) as couponCount from UserCoupon where userIdx=? and isUsed='N' and isDeleted='N')
     as coupon
     on coupon.userIdx=User.userIdx
@@ -481,11 +518,12 @@ function getUserInfo($userIdx){
     on User.userIdx=basket.userIdx
     left outer join Profit
     on User.level=Profit.level
-    inner join (select (select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N')
-                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y') as point from Point where isDeleted='N') as point on 1=1
+    left outer join (select if(count((select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N' and isDeleted='N')
+                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y'and isDeleted='N'))=0,0,((select ifnull(sum(point),0) from Point where userIdx=? and isPaid='N' and isDeleted='N')
+                        -(select ifnull(sum(point),0) from Point where userIdx=? and isPaid='Y'and isDeleted='N'))) as point from Point) as T on 1=1
 where User.userIdx=? and User.isDeleted='N';";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
+    $st->execute([$userIdx,$userIdx,$userIdx,$userIdx,$userIdx,$userIdx,$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $result=$st->fetchAll()[0];
     return $result;
@@ -978,6 +1016,53 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 
 
 //POST
+function addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain){
+    $pdo = pdoSqlConnect();
+    $query="insert into Destination (userIdx,address,addressDetail,isMorning,isMain) values (?,?,?,?,?);";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$address,$addressDetail,$isMorning,$isMain]);
+}
+function addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
+    $pdo = pdoSqlConnect();
+    try {
+        $pdo->beginTransaction();
+        $query = "insert into Destination (userIdx, address, addressDetail, isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
+        $lastIdx = $pdo->lastInsertId();
+        $query = "insert into MorningDestination (receivePlace, howToEnter, entrancePwd, comment, timeToMsg, destinationIdx) values (?,?,?,?,?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$receivePlace, $howToEnter, $entrancePwd, $comment, $timeToMsg, $lastIdx]);
+        $pdo->commit();
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
+function addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain){
+    $pdo = pdoSqlConnect();
+    try {
+        $pdo->beginTransaction();
+        $query = "insert into Destination (userIdx, address, addressDetail, isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
+        $lastIdx = $pdo->lastInsertId();
+        if($request!=null){
+            $query = "insert into PostDestination (request, destinationIdx) values (?,?);";
+            $st = $pdo->prepare($query);
+            $st->execute([$request, $lastIdx]);
+        }
+
+        $pdo->commit();
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
 function addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList){
     $pdo = pdoSqlConnect();
     try{
@@ -1030,7 +1115,9 @@ function addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entra
 
 function addBasket($userIdx,$option){
 
-
+    if($option==null){
+        return array(false, "존재하지 않는 제품이 섞여있습니다.",420);
+    }
     $pdo = pdoSqlConnect();
     for($i=0;$i<count($option);$i++){
         $query = "select EXISTS(select * from ProductOption where productIdx = ? and optionIdx = ? and isDeleted='N') exist;";

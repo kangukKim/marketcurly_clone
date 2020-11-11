@@ -26,6 +26,112 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "addDestination":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $address=$req->address;
+            $addressDetail=$req->addressDetail;
+            $isMorning=$req->isMorning;
+            $isMain=$req->isMain;
+            if($isMain==null)
+                $isMain='N';
+            $receiverName=$req->receiverName;
+            if($receiverName==null){
+                addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain);
+                break;
+            }
+            if($receiverName==null){
+                $res->message = "받으실 분 성함을 입력해주세요.";
+                $res->code = 431;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $receiverPhone=$req->receiverPhone;
+            if($receiverPhone==null){
+                $res->message = "받으실 분 전화번호를 입력해주세요.";
+                $res->code = 432;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            if(!preg_match("/^01[0-9]{8,9}$/", $receiverPhone))
+            {
+                $res->message = "전화번호를 양식에 맞게 입력해주세요.";
+                $res->code = 413;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            if($isMorning=="Y"){
+                $receivePlace=$req->receivePlace;
+                if($receivePlace==null){
+                    $res->message = "받을장소를 선택해주세요.";
+                    $res->code = 433;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+                $howToEnter=$req->howToEnter;
+                if($howToEnter==null){
+                    $res->message = "공동현관 출입방법을 선택해주세요.";
+                    $res->code = 434;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+                $entrancePwd=$req->entrancePwd;
+                $comment=$req->comment;
+                $timeToMsg=$req->timeToMsg;
+                if($timeToMsg==null){
+                    $res->message = "배송완료 메시지 수신 시간을 선택해주세요.";
+                    $res->code = 435;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+                addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                break;
+            }
+            $request=$req->request;
+            addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            break;
+
+        case "isMorningDestination":
+            http_response_code(200);
+            if($_GET['address']==null){
+                $res->message = "주소를 입력해주세요.";
+                $res->code = 430;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $address=$_GET['address'];
+            $address = mb_substr($address,0,2);
+            if($address=='경기'||$address=='서울'||$address=='인천'){
+                $res->isMorning='Y';
+                $res->message = "샛별배송 지역입니다.";
+                $res->code = 204;
+                $res->isSuccess = True;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->isMorning='N';
+            $res->message = "택배배송 지역입니다.";
+            $res->code = 205;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
         case "getHistory":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -178,7 +284,7 @@ try {
                 $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
                 $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
             }
-            $option=$req->option;
+            $option=$_GET['option'];
             $result=deleteBasket($userIdx,$option);
             if ($result[0] == false) {
                 $res->message = $result[1];
