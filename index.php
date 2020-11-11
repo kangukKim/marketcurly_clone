@@ -46,7 +46,8 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
 
     /* ******************   PATCH   ****************** */
     $r->addRoute('PATCH', '/basket', ['IndexController', 'changeBasket']);
-
+    $r->addRoute('PATCH', '/destination-at-order', ['IndexController', 'changeDestinationAtOrder']);
+    $r->addRoute('PATCH', '/destination-at-userinfo', ['IndexController', 'changeDestinationAtUserInfo']);
 
 });
 

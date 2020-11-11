@@ -49,6 +49,129 @@ try {
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+        case "changeDestinationAtOrder":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $destinationIdx=$req->destinationIdx;
+            $address=$req->address;
+            $addressDetail=$req->addressDetail;
+            $isMorning=$req->isMorning;
+            $isMain=$req->isMain;
+            if($isMain==null)
+                $isMain='N';
+            $receiverName=$req->receiverName;
+            if($receiverName==null){
+                $res->message = "받으실 분 성함을 입력해주세요.";
+                $res->code = 431;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $receiverPhone=$req->receiverPhone;
+
+            if($receiverPhone==null){
+                $res->message = "받으실 분 전화번호를 입력해주세요.";
+                $res->code = 432;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            if(!preg_match("/^01[0-9]{8,9}$/", $receiverPhone))
+            {
+                $res->message = "전화번호를 양식에 맞게 입력해주세요.";
+                $res->code = 413;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            if($isMorning=="Y"){
+                $receivePlace=$req->receivePlace;
+                if($receivePlace==null){
+                    $res->message = "받을장소를 선택해주세요.";
+                    $res->code = 433;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+                $howToEnter=$req->howToEnter;
+                if($howToEnter==null){
+                    $res->message = "공동현관 출입방법을 선택해주세요.";
+                    $res->code = 434;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+
+                $entrancePwd=$req->entrancePwd;
+                if($howToEnter=='공동현관 비밀번호'){
+                    if($entrancePwd==null){
+                        $res->message = "공동현관 비밀번호를 입력해주세요.";
+                        $res->code = 436;
+                        $res->isSuccess = False;
+                        echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                        break;
+                    }
+                }
+                $comment=$req->comment;
+                $timeToMsg=$req->timeToMsg;
+                if($timeToMsg==null){
+                    $res->message = "배송완료 메시지 수신 시간을 선택해주세요.";
+                    $res->code = 435;
+                    $res->isSuccess = False;
+                    echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                    break;
+                }
+                $result=changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                $res->message = $result[1];
+                $res->code = 200;
+                $res->isSuccess = True;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $request=$req->request;
+            $result=changePost($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+        case "changeDestinationAtUserInfo":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $destinationIdx=$req->destinationIdx;
+            $addressDetail=$req->addressDetail;
+            $isMain=$req->isMain;
+            $receiverName=$req->receiverName;
+            $receiverPhone=$req->receiverPhone;
+            if($isMain==null)
+                $isMain='N';
+            $result=changeOnlyAddress($destinationIdx,$userIdx,$addressDetail,$isMain,$receiverName,$receiverPhone);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
 
         case "addDestinationAtOrder":
@@ -112,7 +235,17 @@ try {
                     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                     break;
                 }
+
                 $entrancePwd=$req->entrancePwd;
+                if($howToEnter=='공동현관 비밀번호'){
+                    if($entrancePwd==null){
+                        $res->message = "공동현관 비밀번호를 입력해주세요.";
+                        $res->code = 436;
+                        $res->isSuccess = False;
+                        echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                        break;
+                    }
+                }
                 $comment=$req->comment;
                 $timeToMsg=$req->timeToMsg;
                 if($timeToMsg==null){
@@ -126,6 +259,7 @@ try {
                 $res->message = $result[1];
                 $res->code = 200;
                 $res->isSuccess = True;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                 break;
             }
             $request=$req->request;
@@ -133,6 +267,7 @@ try {
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
 
         case "isMorningDestination":
@@ -194,11 +329,7 @@ try {
                 $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
                 $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
             }
-            $destination=$req->destination;
-            $receivePlace=$req->receivePlace;
-            $howToEnter=$req->howToEnter;
-            $entrancePwd=$req->entrancePwd;
-            $timeToMsg=$req->timeToMsg;
+            $destinationIdx=$req->destinationIdx;
             $usedCouponIdx=$req->usedCouponIdx;
             $usedPoint = $req->usedPoint;
             $savedPoint=$req->savedPoint;
@@ -208,7 +339,7 @@ try {
             $orderList=$req->orderList;
             $rand = strtoupper(substr(uniqid(time()),0,4));
             $orderNum = strval(date("YmdHis"). $rand) ;
-            $result=addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList);
+            $result=addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList);
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
