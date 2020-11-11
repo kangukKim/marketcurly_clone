@@ -26,7 +26,32 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
-        case "addDestination":
+        case "addDestinationAtUserInfo":
+            http_response_code(200);
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $address=$req->address;
+            $addressDetail=$req->addressDetail;
+            $isMorning=$req->isMorning;
+            $isMain=$req->isMain;
+            if($isMain==null)
+                $isMain='N';
+            $result=addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            break;
+
+        case "addDestinationAtOrder":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
                 $res->message = "로그인 해주세요.";
@@ -47,10 +72,6 @@ try {
                 $isMain='N';
             $receiverName=$req->receiverName;
             if($receiverName==null){
-                addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain);
-                break;
-            }
-            if($receiverName==null){
                 $res->message = "받으실 분 성함을 입력해주세요.";
                 $res->code = 431;
                 $res->isSuccess = False;
@@ -58,6 +79,7 @@ try {
                 break;
             }
             $receiverPhone=$req->receiverPhone;
+
             if($receiverPhone==null){
                 $res->message = "받으실 분 전화번호를 입력해주세요.";
                 $res->code = 432;
@@ -100,11 +122,17 @@ try {
                     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                     break;
                 }
-                addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                $result=addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                $res->message = $result[1];
+                $res->code = 200;
+                $res->isSuccess = True;
                 break;
             }
             $request=$req->request;
-            addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            $result=addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
             break;
 
         case "isMorningDestination":

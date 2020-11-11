@@ -406,7 +406,7 @@ function getBasket($userIdx)
     $st->execute([$userIdx]);
     $st->setFetchMode(PDO::FETCH_ASSOC);
     $res->address = $st->fetchAll()[0]['address'];
-    $query = "select Basket.productIdx,Basket.optionIdx, needCount, productName, optionName, pictureUrl as productImg, (needCount*originalPrice) as originalPrice, (needCount*clientPrice) as clientPrice, left(P1.packingType,2) as type from Basket
+    $query = "select Basket.productIdx,Basket.optionIdx, needCount, productName, optionName, pictureUrl as productImg, originalPrice, clientPrice, left(P1.packingType,2) as type from Basket
 inner join (select productIdx, productName, packingType from Product where isDeleted='N') as P1
 on Basket.productIdx=P1.productIdx
 left outer join (select productIdx, pictureUrl from ProductPic where ProductPic.pictureKind='main' and isDeleted='N') as P2
@@ -1018,9 +1018,27 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 //POST
 function addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
+    try{
+    $pdo->beginTransaction();
+
     $query="insert into Destination (userIdx,address,addressDetail,isMorning,isMain) values (?,?,?,?,?);";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx,$address,$addressDetail,$isMorning,$isMain]);
+    $lastIdx = $pdo->lastInsertId();
+    if($isMain=='Y'){
+        $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
+        $st = $pdo->prepare($query);
+        $st->execute([$lastIdx,$userIdx]);
+    }
+        $pdo->commit();
+        return array(True,"배송지가 추가되었습니다.",200);
+
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
 }
 function addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
@@ -1030,10 +1048,17 @@ function addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhon
         $st = $pdo->prepare($query);
         $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
         $lastIdx = $pdo->lastInsertId();
+        if($isMain=='Y'){
+            $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$lastIdx,$userIdx]);
+        }
         $query = "insert into MorningDestination (receivePlace, howToEnter, entrancePwd, comment, timeToMsg, destinationIdx) values (?,?,?,?,?,?);";
         $st = $pdo->prepare($query);
         $st->execute([$receivePlace, $howToEnter, $entrancePwd, $comment, $timeToMsg, $lastIdx]);
         $pdo->commit();
+        return array(True,"배송지가 추가되었습니다.",200);
+
     }
     catch ( PDOException $e ) {
         // Failed to insert the order into the database so we rollback any changes
@@ -1049,13 +1074,19 @@ function addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$
         $st = $pdo->prepare($query);
         $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
         $lastIdx = $pdo->lastInsertId();
+        if($isMain=='Y'){
+            $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$lastIdx,$userIdx]);
+        }
         if($request!=null){
             $query = "insert into PostDestination (request, destinationIdx) values (?,?);";
             $st = $pdo->prepare($query);
             $st->execute([$request, $lastIdx]);
         }
-
         $pdo->commit();
+        return array(True,"배송지가 추가되었습니다.",200);
+
     }
     catch ( PDOException $e ) {
         // Failed to insert the order into the database so we rollback any changes

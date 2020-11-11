@@ -38,7 +38,8 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('POST', '/basket', ['IndexController', 'addBasket']);
     $r->addRoute('POST', '/login/guest', ['JWTController', 'createJwt']);   // JWT 생성: 로그인 + 해싱된 패스워드 검증 내용 추가
     $r->addRoute('POST', '/order', ['IndexController', 'addPay']);
-    $r->addRoute('POST', '/destination', ['IndexController', 'addDestination']);
+    $r->addRoute('POST', '/destination-at-order', ['IndexController', 'addDestinationAtOrder']);
+    $r->addRoute('POST', '/destination-at-userinfo', ['IndexController', 'addDestinationAtUserInfo']);
 
     /* ******************   DELETE   ****************** */
     $r->addRoute('DELETE', '/basket', ['IndexController', 'deleteBasket']);
