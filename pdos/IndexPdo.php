@@ -90,7 +90,7 @@ function changeBasket($userIdx,$option){
     try{
         $pdo->beginTransaction();
         for($i=0;$i<count($option);$i++){
-            $query = "update Basket set needCount = ? where userIdx=? and optionIdx=?;";
+            $query = "update Basket set needCount = ? where userIdx=? and optionIdx=? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$option[$i]->optionCount,$userIdx, $option[$i]->optionIdx]);
         }
@@ -112,10 +112,10 @@ function changeBasket($userIdx,$option){
 //DELETE
 function deleteBasket($userIdx, $option){
     $pdo = pdoSqlConnect();
-    for($i=0;$i<count($option);$i++){
+    for($i=0;$i<sizeof($option);$i++){
         $query = "select EXISTS(select * from ProductOption where optionIdx = ? and isDeleted='N') exist;";
         $st = $pdo->prepare($query);
-        $st->execute([$option[$i]->optionIdx]);
+        $st->execute([$option[$i]]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
@@ -123,23 +123,23 @@ function deleteBasket($userIdx, $option){
         }
         $query = "select EXISTS(select * from Basket where userIdx = ? and optionIdx = ? and isDeleted='N') exist;";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx,$option[$i]->optionIdx]);
+        $st->execute([$userIdx,$option[$i]]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $bool = $st->fetchAll()[0]['exist'];
         if(!$bool){
             $query = "select optionName from ProductOption where optionIdx = ? and isDeleted='N';";
             $st = $pdo->prepare($query);
-            $st->execute([$option[$i]->optionIdx]);
+            $st->execute([$option[$i]]);
             $st->setFetchMode(PDO::FETCH_ASSOC);
             return array(false, strval($st->fetchAll()[0]['optionName'])."는 장바구니에 존재하지 않는 제품입니다.",422);
         }
     }
     try{
         $pdo->beginTransaction();
-        for($i=0;$i<count($option);$i++){
-            $query = "update Basket set isDeleted = 'Y' where userIdx=? and optionIdx=?;";
+        for($i=0;$i<sizeof($option);$i++){
+            $query = "update Basket set isDeleted = 'Y' where userIdx=? and optionIdx=? and isDeleted='N';";
             $st = $pdo->prepare($query);
-            $st->execute([$userIdx, $option[$i]->optionIdx]);
+            $st->execute([$userIdx, $option[$i]]);
         }
         $pdo->commit();
         $query = "select count(*) as basketCount from Basket where userIdx=? and isDeleted='N'";
@@ -988,11 +988,11 @@ function addPay($orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entra
         $st = $pdo->prepare($query);
         $st->execute([$orderNum,$userIdx,$destination,$receivePlace,$howToEnter,$entrancePwd,$timeToMsg,$usedCouponIdx,$usedPoint,$originalPrice,$clientPrice,$wayToPay]);
         for($i=0;$i<count($orderList);$i++){
-            $query = "update Basket set isDeleted='Y' where optionIdx =  ? and userIdx= ?;";
+            $query = "update Basket set isDeleted='Y' where optionIdx =  ? and userIdx= ? and isDeleted='N';";
             $st = $pdo->prepare($query);
             $st->execute([$orderList[$i]->optionIdx,$userIdx]);
 
-            $query ="update Stock set quantity = quantity - ? where optionIdx=?;";
+            $query ="update Stock set quantity = quantity - ? where optionIdx=? and isDeleted='N';";
             $st = $pdo->prepare($query);
 
             $st->execute([$orderList[$i]->optionCount,$orderList[$i]->optionIdx]);
@@ -1072,7 +1072,7 @@ function addBasket($userIdx,$option){
 
             }
             else {
-                $query = "update Basket set needCount = needCount+? where userIdx=? and optionIdx=?;";
+                $query = "update Basket set needCount = needCount+? where userIdx=? and optionIdx=? and isDeleted='N';";
                 $st = $pdo->prepare($query);
                 $st->execute([$option[$i]->count, $userIdx, $option[$i]->optionIdx]);
                 $bool2 = 1;
