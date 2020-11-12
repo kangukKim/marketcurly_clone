@@ -12,7 +12,7 @@ date_default_timezone_set('Asia/Seoul');
 ini_set('default_charset', 'utf8mb4');
 
 //에러출력하게 하는 코드
-error_reporting(E_ALL); ini_set("display_errors", 1);
+//error_reporting(E_ALL); ini_set("display_errors", 1);
 //Main Server API
 $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) {
     /* ******************   GET   ****************** */
@@ -25,7 +25,9 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/product/{productIdx}/option', ['IndexController', 'getSelectPage']);
     $r->addRoute('GET', '/basket', ['IndexController', 'getBasket']);
     $r->addRoute('GET', '/history', ['IndexController', 'getHistory']);
+    $r->addRoute('GET', '/history/{orderIdx}', ['IndexController', 'getHistoryDetail']);
     $r->addRoute('GET', '/is-morning-destination', ['IndexController', 'isMorningDestination']);
+    $r->addRoute('GET', '/search', ['IndexController', 'getSearch']);
 
 
 

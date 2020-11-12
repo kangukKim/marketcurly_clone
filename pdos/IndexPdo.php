@@ -2,6 +2,22 @@
 
 
 //validation
+function isMyHistory($userIdx,$payIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select EXISTS(select * from OrderDetail where userIdx = ? and payIdx = ? and isDeleted='N') exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$payIdx]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if($res[0]['exist']==1){
+        return True;
+    }
+    else{
+        return False;
+    }
+}
+
 function isValidUserId($userId){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from User where userId = ? and isDeleted='N') exist;";
@@ -277,6 +293,65 @@ function deleteBasket($userIdx, $option){
         throw $e;
     }
 }
+function getHistoryDetail($payIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select OrderList.productIdx, OrderList.optionIdx,P2.productName,optionName,concat(optionCount, '개 구매') as optionCount,pictureUrl as mainPic,FORMAT(optionCount*originalPrice,0) as originalPrice, FORMAT(optionCount*clientPrice,0) as clientPrice,status from OrderList
+left outer join (select productIdx, optionIdx, optionName,originalPrice,clientPrice from ProductOption) as P
+on OrderList.optionIdx=P.optionIdx
+left outer join (select productIdx, productName from Product) as P2
+on OrderList.productIdx=P2.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
+on pic.productIdx=OrderList.productIdx
+left outer join (select status from Shipping where payIdx=?) as T on 1=1
+where payIdx = ?;";
+    $st = $pdo->prepare($query);
+    $st->execute([$payIdx,$payIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res=new stdClass();
+    $res->orderList=$st->fetchAll();
+    $query = "select format(totalPrice,0) as totalPrice, format(if(totalClientPrice>=40000,0,3000),0) as delivery, format((totalPrice-payPrice),0) as salePrice, format(payPrice,0) as payPrice, format(ifnull(savedPoint,0),0) as savedPoint from OrderDetail where payIdx=?;";
+    $st = $pdo->prepare($query);
+    $st->execute([$payIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->payInfo=$st->fetchAll()[0];
+    $query = "select payIdx, name as userName, name as senderName, OrderDetail.createdAt as payAt from OrderDetail
+inner join (select userIdx,name from User) as T on T.userIdx=OrderDetail.userIdx where payIdx=?;";
+    $st = $pdo->prepare($query);
+    $st->execute([$payIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->orderInfo=$st->fetchAll()[0];
+    $query = "select ifnull(receiverName,'-') as receiverName,
+       case length(receiverPhone)
+       WHEN 11 THEN ifnull(CONCAT(LEFT(receiverPhone, 3), '-****-', RIGHT(receiverPhone, 4)),'-')
+       WHEN 10 THEN ifnull(CONCAT(LEFT(receiverPhone, 3), '-***-', RIGHT(receiverPhone, 4)),'-')
+        end as receiverPhone
+       , ifnull(shipping,'-') as shipping,ifnull(postNum,'-') as postNum, ifnull(address,'-') as address from OrderDetail where payIdx=?;";
+    $st = $pdo->prepare($query);
+    $st->execute([$payIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res->destinationInfo=$st->fetchAll()[0];
+    if($res->destinationInfo['shipping']=='샛별배송'){
+        $query = "select ifnull(receivePlace,'-') as receivePlace,ifnull(howToEnter,'-') as howToEnter from OrderDetail where payIdx=?;";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->placeInfo=$st->fetchAll()[0];
+        $query = "select ifnull(timeToMsg,'-') as timeToMsg,dealUnreleased from OrderDetail where payIdx=?;";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->extraInfo=$st->fetchAll()[0];
+    }
+    else {
+        $query = "select dealUnreleased from OrderDetail where payIdx=?;";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->extraInfo = $st->fetchAll()[0];
+    }
+    return array(True, "주문내역상세입니다.",$res);
+}
+
 function getHistory($userIdx){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from OrderDetail where userIdx = ? and isDeleted='N') exist;";
@@ -934,6 +1009,204 @@ where Review.isBest='Y' and User.isDeleted='N' and Review.isDeleted='N'and User.
 //    $res->bestComment = $st->fetchAll();
     return $res;
 }
+function getSearch($keyword,$filter)
+{
+    $pdo = pdoSqlConnect();
+    $res = new stdClass();
+    if ($filter == '샛별배송') {
+        $query = "select count(*) as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
+                else 0
+                    END
+         as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where isMorning='Y' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'))) as T;";
+        $st = $pdo->prepare($query);
+        $st->execute([$keyword,$keyword,$keyword]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->searchCount = $st->fetchAll()[0]['searchCount'];
+        if($res->searchCount==0){
+            return array(False,206,"검색결과가 없습니다.");
+        }
+        $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
+                else 0
+                    END
+         as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where isMorning='Y' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'));";
+        $st = $pdo->prepare($query);
+        $st->execute([$keyword,$keyword,$keyword]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->searchResult = $st->fetchAll();
+        return array(True,207,"검색결과 입니다.",$res);
+    } else {
+        $query = "select count(*) as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
+                else 0
+                    END
+         as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where isMorning='N' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'))) as T;";
+        $st = $pdo->prepare($query);
+        $st->execute([$keyword,$keyword,$keyword]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->searchCount = $st->fetchAll()[0]['searchCount'];
+        if($res->searchCount==0){
+            return array(False,206,"검색결과가 없습니다.");
+        }
+        $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+inner join
+(select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
+    when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>10 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=15 then 15
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>15 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=20 then 20
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>20 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=25 then 25
+        when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>25 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=30 then 30
+            when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>30 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=35 then 35
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>35 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=40 then 40
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>40 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=45 then 45
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>45 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=50 then 50
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>50 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=55 then 55
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>55 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=60 then 60
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>60 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=65 then 65
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>65 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=70 then 70
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>70 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=75 then 75
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>75 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=80 then 80
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>80 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=85 then 85
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>85 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=90 then 90
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>90 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=95 then 95
+                when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>95 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=100 then 100
+                else 0
+                    END
+         as salePercent from ProductOption group by productIdx) as PO
+on PO.productIdx=Product.productIdx
+inner join (select productIdx, pictureUrl from ProductPic where pictureKind='main' and isDeleted='N') as pic
+on pic.productIdx=PO.productIdx
+inner join (select *
+from(
+	select
+		productIdx,quantity
+	from Stock
+	inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where (productIdx, quantity)  in (
+		select productIdx, max(quantity)
+		from Stock inner join ProductOption PO on Stock.optionIdx = PO.optionIdx where Stock.isDeleted='N' and PO.isDeleted='N' group by productIdx
+	)
+	order by quantity desc
+) S group by productIdx) as S1
+on S1.productIdx = PO.productIdx
+where isMorning='N' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'));";
+        $st = $pdo->prepare($query);
+        $st->execute([$keyword,$keyword,$keyword]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $res->searchResult = $st->fetchAll();
+        return array(True,207,"검색결과 입니다.",$res);
+    }
+}
+
+
 function getHomePage($userIdx){
     $pdo = pdoSqlConnect();
     $res=new stdClass();
@@ -1236,7 +1509,7 @@ function addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$
         throw $e;
     }
 }
-function addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList){
+function addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$totalClientPrice,$clientPrice,$wayToPay,$orderList){
     $pdo = pdoSqlConnect();
     try{
         $pdo->beginTransaction();
@@ -1282,10 +1555,10 @@ where Destination.destinationIdx=? and (PD.isDeleted='N' or isnull(PD.isDeleted)
         $st->execute([$userIdx]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $result1=$st->fetchAll()[0]['name'];
-        $query="insert into OrderDetail (userIdx, payIdx, totalPrice, payPrice, savedPoint, usedCoupon, usedPoint, buyer, receiverName, receiverPhone, shipping, postNum, address, receivePlace, howToEnter, timeToMsg, howToPay) 
+        $query="insert into OrderDetail (userIdx, payIdx, totalPrice, totalClientPrice,payPrice, savedPoint, usedCoupon, usedPoint, buyer, receiverName, receiverPhone, shipping, postNum, address, receivePlace, howToEnter, timeToMsg, howToPay) 
 values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx,$orderNum,$originalPrice,$clientPrice,$savedPoint,$usedCouponIdx,$usedPoint,$result1,$result['receiverName'],$result['receiverPhone'],$result['isMorning'],$result['postNum'],$result['address'],$result['receivePlace'],$result['howToEnter'],$result['timeToMsg'],$wayToPay]);
+        $st->execute([$userIdx,$orderNum,$originalPrice,$totalClientPrice,$clientPrice,$savedPoint,$usedCouponIdx,$usedPoint,$result1,$result['receiverName'],$result['receiverPhone'],$result['isMorning'],$result['postNum'],$result['address'],$result['receivePlace'],$result['howToEnter'],$result['timeToMsg'],$wayToPay]);
 
         for($i=0;$i<count($orderList);$i++){
             $query = "update Basket set isDeleted='Y' where optionIdx =  ? and userIdx= ? and isDeleted='N';";
@@ -1302,6 +1575,11 @@ values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 
             $st->execute([$orderNum,$orderList[$i]->productIdx,$orderList[$i]->optionIdx,$orderList[$i]->optionCount]);
 
+        }
+        if($usedCouponIdx!=null){
+            $query ="update UserCoupon set isUsed='Y' where userIdx=? and couponIdx=? and isDeleted='N' and isUsed='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx,$usedCouponIdx]);
         }
         if($savedPoint!=null){
         $query ="insert into Point (isPaid, userIdx, point, payIdx) values ('N',?,?,?);";

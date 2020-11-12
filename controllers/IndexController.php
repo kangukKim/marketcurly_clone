@@ -26,6 +26,52 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "getSearch":
+            $keyword=$_GET['keyword'];
+            $filter=$_GET['filter'];
+            $result = getSearch($keyword,$filter);
+            if($result[0]==false){
+                $res->message =$result[2];
+                $res->code = $result[1];
+                $res->isSuccess = True;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->result=$result[3];
+            $res->message =$result[2];
+            $res->code = $result[1];
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
+        case "getHistoryDetail":
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $payIdx=$vars['orderIdx'];
+            $bool = isMyHistory($userIdx,$payIdx);
+            if(!$bool){
+                $res->message = "본인의 주문내역이 아닙니다.";
+                $res->code = 445;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $result=getHistoryDetail($payIdx);
+            $res->result=$result[2];
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
         case "addDestinationAtUserInfo":
             http_response_code(200);
             if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
@@ -334,12 +380,13 @@ try {
             $usedPoint = $req->usedPoint;
             $savedPoint=$req->savedPoint;
             $originalPrice = $req->originalPrice;
-            $clientPrice = $req->clientPrice;
+            $totalClientPrice=$req->totalClientPrice;
+            $clientPrice = $req->payPrice;
             $wayToPay=$req->wayToPay;
             $orderList=$req->orderList;
             $rand = strtoupper(substr(uniqid(time()),0,4));
             $orderNum = strval(date("YmdHis"). $rand) ;
-            $result=addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$clientPrice,$wayToPay,$orderList);
+            $result=addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$totalClientPrice,$clientPrice,$wayToPay,$orderList);
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
