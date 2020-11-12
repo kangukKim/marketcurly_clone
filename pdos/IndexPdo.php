@@ -512,7 +512,7 @@ where Basket.isDeleted='N' and userIdx=:userIdx and FIND_IN_SET(Basket.optionIdx
     $query="select userIdx, name as userName, case length(phoneNumber)
        WHEN 11 THEN CONCAT(LEFT(phoneNumber, 3), '-', MID(phoneNumber, 4, 4), '-', RIGHT(phoneNumber, 4))
        WHEN 10 THEN CONCAT(LEFT(phoneNumber, 3), '-', MID(phoneNumber, 4, 3), '-', RIGHT(phoneNumber, 4))
-        end as phoneNumber
+        end as phoneNumber, email
         from User where userIdx=? and isDeleted='N';";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
