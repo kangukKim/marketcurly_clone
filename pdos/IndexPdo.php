@@ -1014,7 +1014,7 @@ function getSearch($keyword,$filter)
     $pdo = pdoSqlConnect();
     $res = new stdClass();
     if ($filter == '샛별배송') {
-        $query = "select count(*) as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+        $query = "select count(*) as checked,concat(?, ' 검색결과 (',count(*),')') as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
 (select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
@@ -1056,10 +1056,12 @@ from(
 on S1.productIdx = PO.productIdx
 where isMorning='Y' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'))) as T;";
         $st = $pdo->prepare($query);
-        $st->execute([$keyword,$keyword,$keyword]);
+        $st->execute([$keyword,$keyword,$keyword,$keyword]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
-        $res->searchCount = $st->fetchAll()[0]['searchCount'];
-        if($res->searchCount==0){
+        $result = $st->fetchAll()[0];
+        $check = $result['checked'];
+        $res->searchCount = $result['searchCount'];
+        if($check==0){
             return array(False,206,"검색결과가 없습니다.");
         }
         $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
@@ -1109,7 +1111,7 @@ where isMorning='Y' and Product.isDeleted='N' and quantity !=0 and (productName 
         $res->searchResult = $st->fetchAll();
         return array(True,207,"검색결과 입니다.",$res);
     } else {
-        $query = "select count(*) as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
+        $query = "select count(*) as checked, concat(?, ' 검색결과 (',count(*),')') as searchCount from (select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product
 inner join
 (select productIdx, optionName,concat(FORMAT(originalPrice,0),'원') as originalPrice,FORMAT(min(clientPrice),'원') as clientPrice,case when FORMAT((originalPrice-clientPrice)/originalPrice*100,0) >0 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=5 then 5
     when FORMAT((originalPrice-clientPrice)/originalPrice*100,0)>5 && FORMAT((originalPrice-clientPrice)/originalPrice*100,0)<=10 then 10
@@ -1151,10 +1153,12 @@ from(
 on S1.productIdx = PO.productIdx
 where isMorning='N' and Product.isDeleted='N' and quantity !=0 and (productName LIKE concat('%',?,'%') or PO.optionName LIKE concat('%',?,'%') or category LIKE concat('%',?,'%'))) as T;";
         $st = $pdo->prepare($query);
-        $st->execute([$keyword,$keyword,$keyword]);
+        $st->execute([$keyword,$keyword,$keyword,$keyword]);
         $st->setFetchMode(PDO::FETCH_ASSOC);
-        $res->searchCount = $st->fetchAll()[0]['searchCount'];
-        if($res->searchCount==0){
+        $result = $st->fetchAll()[0];
+        $check = $result['checked'];
+        $res->searchCount = $result['searchCount'];
+        if($check==0){
             return array(False,206,"검색결과가 없습니다.");
         }
         $query ="select Product.productIdx,productName,pictureUrl,PO.originalPrice,concat(PO.clientPrice,'원') as clientPrice,PO.salePercent from Product

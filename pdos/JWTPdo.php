@@ -1,5 +1,17 @@
 <?php
-
+function insertToken($userIdx,$deviceToken){
+    $pdo = pdoSqlConnect();
+    $query = "select  exists (select deviceToken from DeviceToken where userIdx=? and deviceToken=?) exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$deviceToken]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll()[0]['exist'];
+    if(!$res){
+        $query = "insert into DeviceToken (userIdx, deviceToken) values (?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$deviceToken]);
+    }
+}
 function isValidUser($userId, $password){
     if($userId==null){
         return array(false, "아이디를 입력해주세요.",401);
