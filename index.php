@@ -28,6 +28,7 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
     $r->addRoute('GET', '/history/{orderIdx}', ['IndexController', 'getHistoryDetail']);
     $r->addRoute('GET', '/is-morning-destination', ['IndexController', 'isMorningDestination']);
     $r->addRoute('GET', '/search', ['IndexController', 'getSearch']);
+    $r->addRoute('GET', '/destination', ['IndexController', 'getDestination']);
 
 
 
@@ -45,6 +46,9 @@ $dispatcher = FastRoute\simpleDispatcher(function (FastRoute\RouteCollector $r) 
 
     /* ******************   DELETE   ****************** */
     $r->addRoute('DELETE', '/basket', ['IndexController', 'deleteBasket']);
+    $r->addRoute('DELETE', '/destination', ['IndexController', 'deleteDestination']);
+    $r->addRoute('DELETE', '/order', ['IndexController', 'deleteOrder']);
+
 
     /* ******************   PATCH   ****************** */
     $r->addRoute('PATCH', '/basket', ['IndexController', 'changeBasket']);

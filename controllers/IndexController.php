@@ -26,6 +26,97 @@ try {
          * API Name : 테스트 API
          * 마지막 수정 날짜 : 19.04.29
          */
+        case "deleteOrder":
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $payIdx=$_GET['orderIdx'];
+            $reason=$_GET['reason'];
+            $bool=isDeleted($userIdx,$payIdx);
+
+            if(!$bool[0]){
+
+                $res->message = $bool[1];
+                $res->code = $bool[2];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            if($reason==null){
+                $res->message = "취소사유는 필수항목입니다";
+                $res->code = 449;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $result = deleteOrder($userIdx,$payIdx,$reason);
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+        case "getDestination":
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $result=getDestination($userIdx);
+            $res->result=$result[2];
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+        case "deleteDestination":
+            if(!isset($_SERVER["HTTP_X_ACCESS_TOKEN"])){
+                $res->message = "로그인 해주세요.";
+                $res->code = 419;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            else{
+                $jwt = $_SERVER["HTTP_X_ACCESS_TOKEN"];
+                $userIdx=getDataByJWToken($jwt,JWT_SECRET_KEY)->userIdx;
+            }
+            $destinationIdx=$_GET['destinationIdx'];
+            $bool = isMyDestination($userIdx,$destinationIdx);
+            if(!$bool){
+                $res->message = "본인의 배송지가 아닙니다.";
+                $res->code = 446;
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $result=deleteDestination($userIdx,$destinationIdx);
+            if(!$result[0]){
+                $res->message = $result[2];
+                $res->code = $result[1];
+                $res->isSuccess = False;
+                echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+                break;
+            }
+            $res->message = $result[1];
+            $res->code = 200;
+            $res->isSuccess = True;
+            echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
+            break;
+
         case "getSearch":
             $keyword=$_GET['keyword'];
             $filter=$_GET['filter'];
@@ -87,11 +178,12 @@ try {
             }
             $address=$req->address;
             $addressDetail=$req->addressDetail;
+            $postNum=$req->postNum;
             $isMorning=$req->isMorning;
             $isMain=$req->isMain;
             if($isMain==null)
                 $isMain='N';
-            $result=addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain);
+            $result=addOnlyAddress($userIdx,$address,$addressDetail,$postNum,$isMorning,$isMain);
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
@@ -112,6 +204,7 @@ try {
             }
             $destinationIdx=$req->destinationIdx;
             $address=$req->address;
+            $postNum=$req->postNum;
             $addressDetail=$req->addressDetail;
             $isMorning=$req->isMorning;
             $isMain=$req->isMain;
@@ -179,7 +272,7 @@ try {
                     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                     break;
                 }
-                $result=changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                $result=changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
                 $res->message = $result[1];
                 $res->code = 200;
                 $res->isSuccess = True;
@@ -187,7 +280,7 @@ try {
                 break;
             }
             $request=$req->request;
-            $result=changePost($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            $result=changePost($userIdx,$destinationIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
@@ -235,6 +328,7 @@ try {
             }
             $address=$req->address;
             $addressDetail=$req->addressDetail;
+            $postNum=$req->postNum;
             $isMorning=$req->isMorning;
             $isMain=$req->isMain;
             if($isMain==null)
@@ -301,7 +395,7 @@ try {
                     echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
                     break;
                 }
-                $result=addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
+                $result=addMorning($userIdx,$address,$postNum,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain);
                 $res->message = $result[1];
                 $res->code = 200;
                 $res->isSuccess = True;
@@ -309,7 +403,7 @@ try {
                 break;
             }
             $request=$req->request;
-            $result=addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
+            $result=addPost($userIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$request,$isMorning,$isMain);
             $res->message = $result[1];
             $res->code = 200;
             $res->isSuccess = True;
@@ -388,8 +482,8 @@ try {
             $orderNum = strval(date("YmdHis"). $rand) ;
             $result=addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$savedPoint,$originalPrice,$totalClientPrice,$clientPrice,$wayToPay,$orderList);
             $res->message = $result[1];
-            $res->code = 200;
-            $res->isSuccess = True;
+            $res->code = $result[2];
+            $res->isSuccess = $result[0];
             echo json_encode($res, JSON_UNESCAPED_UNICODE | JSON_NUMERIC_CHECK);
             break;
 

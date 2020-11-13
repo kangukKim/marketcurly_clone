@@ -2,6 +2,47 @@
 
 
 //validation
+
+function isDeleted($userIdx,$payIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select EXISTS(select * from OrderDetail where userIdx = ? and payIdx = ? and isDeleted='N' and isCancelled='N') exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$payIdx]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if(!$res[0]['exist']){
+        return array(false, "고객님의 주문이 아닙니다",447);
+    }
+    $query = "select status from Shipping where payIdx=?";
+    $st = $pdo->prepare($query);
+    $st->execute([$payIdx]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if($res[0]['status']!='입금확인'){
+
+        return array(false, "현재는 취소하실 수 없는 상태입니다",448);
+    }
+    return array(True);
+
+}
+function isMyDestination($userIdx,$destinationIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select EXISTS(select * from Destination where userIdx = ? and destinationIdx = ? and isDeleted='N') exist;";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx,$destinationIdx]);
+    //    $st->execute();
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res = $st->fetchAll();
+    if($res[0]['exist']==1){
+        return True;
+    }
+    else{
+        return False;
+    }
+}
+
 function isMyHistory($userIdx,$payIdx){
     $pdo = pdoSqlConnect();
     $query = "select EXISTS(select * from OrderDetail where userIdx = ? and payIdx = ? and isDeleted='N') exist;";
@@ -95,13 +136,13 @@ function changeOnlyAddress($destinationIdx,$userIdx,$addressDetail,$isMain,$rece
         throw $e;
     }
 }
-function changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
+function changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
     try {
         $pdo->beginTransaction();
-        $query = "update Destination set address=?,addressDetail=?,receiverName=?,receiverPhone=?,isMain=?,isMorning=? where destinationIdx=? and isDeleted='N';";
+        $query = "update Destination set address=?,addressDetail=?,postNum=?,receiverName=?,receiverPhone=?,isMain=?,isMorning=? where destinationIdx=? and isDeleted='N';";
         $st = $pdo->prepare($query);
-        $st->execute([$address, $addressDetail,$receiverName, $receiverPhone,$isMain,$isMorning,$destinationIdx]);
+        $st->execute([$address, $addressDetail,$postNum,$receiverName, $receiverPhone,$isMain,$isMorning,$destinationIdx]);
         if($isMain=='Y'){
             $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
             $st = $pdo->prepare($query);
@@ -143,13 +184,13 @@ function changeMorning($userIdx,$destinationIdx,$address,$addressDetail,$receive
         throw $e;
     }
 }
-function changePost($userIdx,$destinationIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain){
+function changePost($userIdx,$destinationIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$request,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
     try {
         $pdo->beginTransaction();
-        $query = "update Destination set address=?,addressDetail=?,receiverName=?,receiverPhone=?,isMain=?,isMorning=? where destinationIdx=? and isDeleted='N';";
+        $query = "update Destination set address=?,addressDetail=?,postNum=?,receiverName=?,receiverPhone=?,isMain=?,isMorning=? where destinationIdx=? and isDeleted='N';";
         $st = $pdo->prepare($query);
-        $st->execute([$address, $addressDetail, $receiverName, $receiverPhone,$isMain,$isMorning,$destinationIdx]);
+        $st->execute([$address, $addressDetail, $postNum,$receiverName, $receiverPhone,$isMain,$isMorning,$destinationIdx]);
         if($isMain=='Y'){
             $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
             $st = $pdo->prepare($query);
@@ -247,6 +288,106 @@ function changeBasket($userIdx,$option){
 }
 
 //DELETE
+function deleteOrder($userIdx,$payIdx,$reason){
+    $pdo = pdoSqlConnect();
+    try{
+        $pdo->beginTransaction();
+        $query = "select usedCoupon, savedPoint, usedPoint from OrderDetail where payIdx = ?";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $detail = $st->fetchAll()[0];
+
+        $query = "select productIdx,optionIdx,optionCount from OrderList where payIdx = ?";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $orderList = $st->fetchAll();
+
+        $query = "update OrderDetail set isCancelled='Y' where payIdx=?";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+
+        $query = "update UserCoupon set isUsed='N' where userIdx=? and couponIdx=? and isDeleted='N' and isUsed='Y'";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$detail['usedCoupon']]);
+
+        if($detail['usedPoint']!=null){
+            $query ="insert into Point (isPaid, userIdx, point, payIdx) values ('N',?,?,?);";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx,$detail['usedPoint'],$payIdx]);
+        }
+        if($detail['savedPoint']!=null){
+            $query ="insert into Point (isPaid, userIdx, point, payIdx) values ('Y',?,?,?);";
+            $st = $pdo->prepare($query);
+            $st->execute([$userIdx,$detail['savedPoint'],$payIdx]);
+        }
+
+        $query = "update Shipping set status='취소완료' where payIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx]);
+
+        for($i=0;$i<count($orderList);$i++){
+            $query ="update Stock set quantity = quantity + ? where optionIdx=? and isDeleted='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$orderList[$i]['optionCount'],$orderList[$i]['optionIdx']]);
+        }
+        $query ="insert into Cancel (payIdx, reason) values (?,?);";
+        $st = $pdo->prepare($query);
+        $st->execute([$payIdx,$reason]);
+
+        $pdo->commit();
+        return array(True,"구매가 취소되었습니다.",200);
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
+function deleteDestination($userIdx,$destinationIdx){
+    $pdo = pdoSqlConnect();
+    try{
+        $pdo->beginTransaction();
+        $query = "select count(*) as destinationCnt from Destination where userIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$userIdx,$destinationIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $cnt = $st->fetchAll()[0]['destinationCnt'];
+        if($cnt==1){
+            return array(False,"배송지는 최소 1개 이상이어야합니다.",447);
+
+        }
+
+
+        $query = "select isMorning from Destination where destinationIdx=? and isDeleted='N'";
+        $st = $pdo->prepare($query);
+        $st->execute([$destinationIdx]);
+        $st->setFetchMode(PDO::FETCH_ASSOC);
+        $isMorning = $st->fetchAll()[0]['isMorning'];
+
+        $query = "update Destination set isDeleted = 'Y' where destinationIdx=? and isDeleted='N';";
+        $st = $pdo->prepare($query);
+        $st->execute([$destinationIdx]);
+        if($isMorning == 'Y'){
+            $query = "update MorningDestination set isDeleted = 'Y' where destinationIdx=? and isDeleted='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$destinationIdx]);
+        }
+        else{
+            $query = "update PostDestination set isDeleted = 'Y' where destinationIdx=? and isDeleted='N';";
+            $st = $pdo->prepare($query);
+            $st->execute([$destinationIdx]);
+        }
+        $pdo->commit();
+        return array(True,"배송지가 삭제되었습니다.",200);
+    }
+    catch ( PDOException $e ) {
+        // Failed to insert the order into the database so we rollback any changes
+        $pdo->rollback();
+        throw $e;
+    }
+}
 function deleteBasket($userIdx, $option){
     $pdo = pdoSqlConnect();
     $options =explode(';' , $option);
@@ -362,13 +503,13 @@ function getHistory($userIdx){
     if(!$bool){
         return array(false, "주문 기록이 없습니다.",430);
     }
-    $query="select OrderDetail.payIdx as orderIdx, if(optionCount=1,productName, concat(productName,' 외 ',optionCount-1,' 건')) as productName, OrderDetail.updatedAt as orderAt,wayToPay,FORMAT(price,0) as price,status from OrderDetail
+    $query="select OrderDetail.payIdx as orderIdx, if(optionCount=1,productName, concat(productName,' 외 ',optionCount-1,' 건')) as productName, OrderDetail.updatedAt as orderAt,howToPay,FORMAT(payPrice,0) as price,status from OrderDetail
 inner join Shipping S on OrderDetail.payIdx = S.payIdx
 inner join (select payIdx,productIdx,count(*) as optionCount  from OrderList group by payIdx) as L
 on L.payIdx=OrderDetail.payIdx
 inner join (select productIdx, productName from Product) as T
 on L.productIdx=T.productIdx
-where userIdx=?
+where userIdx=?;
 ;";
     $st = $pdo->prepare($query);
     $st->execute([$userIdx]);
@@ -501,7 +642,9 @@ left outer join (select productIdx, pictureUrl from ProductPic where pictureKind
 on Basket.productIdx= P2.productIdx
 left outer join (select productIdx, optionIdx, optionName, originalPrice, clientPrice from ProductOption where isDeleted='N') as P3
 on Basket.optionIdx= P3.optionIdx
-where Basket.isDeleted='N' and userIdx=:userIdx and FIND_IN_SET(Basket.optionIdx,:array)";
+where Basket.isDeleted='N' and userIdx=:userIdx and FIND_IN_SET(Basket.optionIdx,:array)
+group by Basket.optionIdx
+";
     $st = $pdo->prepare($query);
     $st->bindParam(':array',$ids_string);
     $st->bindParam(':userIdx',$userIdx);
@@ -842,6 +985,21 @@ left outer join Answer A on Inquiry.inquiryIdx = A.inquiryIdx where Inquiry.prod
     $res->inquiry = $st->fetchAll();
 
     return array(True,"제품정보입니다",$res);
+}
+
+function getDestination($userIdx){
+    $pdo = pdoSqlConnect();
+    $query = "select destinationIdx,concat(address,' ',ifnull(addressDetail,'')) as address,
+       ifnull(receiverName,'없음') as receiverName,ifnull(case length(receiverPhone)
+       WHEN 11 THEN CONCAT(LEFT(receiverPhone, 3), '-', MID(receiverPhone, 4, 4), '-', RIGHT(receiverPhone, 4))
+       WHEN 10 THEN CONCAT(LEFT(receiverPhone, 3), '-', MID(receiverPhone, 4, 3), '-', RIGHT(receiverPhone, 4))
+        end,'없음') as receiverPhone,isMain,if(isMorning='Y','샛별배송','택배배송') as isMorning from Destination
+where userIdx=? and isDeleted='N';";
+    $st = $pdo->prepare($query);
+    $st->execute([$userIdx]);
+    $st->setFetchMode(PDO::FETCH_ASSOC);
+    $res=$st->fetchall();
+    return array(True,"배송지 목록 입니다",$res);
 }
 
 function getRecommendPage($userIdx){
@@ -1435,14 +1593,14 @@ function isValidNewUser($userId, $password, $name, $email, $phoneNumber,$address
 
 
 //POST
-function addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain){
+function addOnlyAddress($userIdx,$address,$addressDetail,$postNum,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
     try{
     $pdo->beginTransaction();
 
-    $query="insert into Destination (userIdx,address,addressDetail,isMorning,isMain) values (?,?,?,?,?);";
+    $query="insert into Destination (userIdx,address,addressDetail,postNum,isMorning,isMain) values (?,?,?,?,?,?);";
     $st = $pdo->prepare($query);
-    $st->execute([$userIdx,$address,$addressDetail,$isMorning,$isMain]);
+    $st->execute([$userIdx,$address,$addressDetail,$postNum,$isMorning,$isMain]);
     $lastIdx = $pdo->lastInsertId();
     if($isMain=='Y'){
         $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
@@ -1459,13 +1617,13 @@ function addOnlyAddress($userIdx,$address,$addressDetail,$isMorning,$isMain){
         throw $e;
     }
 }
-function addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
+function addMorning($userIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$receivePlace,$howToEnter,$entrancePwd,$comment,$timeToMsg,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
     try {
         $pdo->beginTransaction();
-        $query = "insert into Destination (userIdx, address, addressDetail, isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?);";
+        $query = "insert into Destination (userIdx, address, addressDetail, postNum,isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?,?);";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
+        $st->execute([$userIdx, $address, $addressDetail, $postNum,$isMorning, $isMain, $receiverName, $receiverPhone]);
         $lastIdx = $pdo->lastInsertId();
         if($isMain=='Y'){
             $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
@@ -1485,13 +1643,13 @@ function addMorning($userIdx,$address,$addressDetail,$receiverName,$receiverPhon
         throw $e;
     }
 }
-function addPost($userIdx,$address,$addressDetail,$receiverName,$receiverPhone,$request,$isMorning,$isMain){
+function addPost($userIdx,$address,$addressDetail,$postNum,$receiverName,$receiverPhone,$request,$isMorning,$isMain){
     $pdo = pdoSqlConnect();
     try {
         $pdo->beginTransaction();
-        $query = "insert into Destination (userIdx, address, addressDetail, isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?);";
+        $query = "insert into Destination (userIdx, address, addressDetail, postNum,isMorning,isMain, receiverName, receiverPhone) values(?,?,?,?,?,?,?,?);";
         $st = $pdo->prepare($query);
-        $st->execute([$userIdx, $address, $addressDetail, $isMorning, $isMain, $receiverName, $receiverPhone]);
+        $st->execute([$userIdx, $address, $addressDetail, $postNum,$isMorning, $isMain, $receiverName, $receiverPhone]);
         $lastIdx = $pdo->lastInsertId();
         if($isMain=='Y'){
             $query = "update Destination set isMain='N' where destinationIdx !=  ? and userIdx= ? and isDeleted='N';";
@@ -1538,6 +1696,7 @@ function addPay($orderNum,$userIdx,$destinationIdx,$usedCouponIdx,$usedPoint,$sa
             if($st->fetchAll()[0]['cnt']==0){
                 return array(false, "받으실 장소를 입력해주세요",441);
             }
+
             $query="select receiverName,receiverPhone,if(Destination.isMorning='Y','샛별배송','택배배송') as isMorning,postNum,concat (address,' ',addressDetail) as address,ifnull(receivePlace,'-') as receivePlace,howToEnter, timeToMsg  from Destination left outer join MorningDestination MD on Destination.destinationIdx = MD.destinationIdx
 where MD.destinationIdx=? and (MD.isDeleted='N' or isnull(MD.isDeleted)) and Destination.isDeleted='N'";
             $st = $pdo->prepare($query);
@@ -1560,7 +1719,7 @@ where Destination.destinationIdx=? and (PD.isDeleted='N' or isnull(PD.isDeleted)
         $st->setFetchMode(PDO::FETCH_ASSOC);
         $result1=$st->fetchAll()[0]['name'];
         $query="insert into OrderDetail (userIdx, payIdx, totalPrice, totalClientPrice,payPrice, savedPoint, usedCoupon, usedPoint, buyer, receiverName, receiverPhone, shipping, postNum, address, receivePlace, howToEnter, timeToMsg, howToPay) 
-values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         $st = $pdo->prepare($query);
         $st->execute([$userIdx,$orderNum,$originalPrice,$totalClientPrice,$clientPrice,$savedPoint,$usedCouponIdx,$usedPoint,$result1,$result['receiverName'],$result['receiverPhone'],$result['isMorning'],$result['postNum'],$result['address'],$result['receivePlace'],$result['howToEnter'],$result['timeToMsg'],$wayToPay]);
 

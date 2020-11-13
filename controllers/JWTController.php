@@ -27,13 +27,13 @@ try {
                 return;
             }
             $deviceToken=$req->tokenId;
-            if($deviceToken==null) {
-                $res->isSuccess = False;
-                $res->code = 200;
-                $res->message = "디바이스토큰이 없습니다";
-                echo json_encode($res, JSON_NUMERIC_CHECK);
-                break;
-            }
+//            if($deviceToken==null) {
+//                $res->isSuccess = False;
+//                $res->code = 200;
+//                $res->message = "디바이스토큰이 없습니다";
+//                echo json_encode($res, JSON_NUMERIC_CHECK);
+//                break;
+//            }
             // 2) JWT 발급
             // Payload에 맞게 다시 설정 요함, 아래는 Payload에 userIdx를 넣기 위한 과정
             $userIdx=getUserIdxById($req->userId);   // JWTPdo.php 에 구현
