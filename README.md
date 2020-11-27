@@ -1,3 +1,2 @@
-# PHP
+# Marketcury clone
 
-good?
